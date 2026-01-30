@@ -1,0 +1,28 @@
+
+# Read This First (AI Agents)
+
+You are an AI coding agent working on DropServe.
+
+## Your workflow
+
+1. Read `docs/00_Index.md` for the source-of-truth rules.
+2. Read these specs fully before writing code:
+   - `docs/04_Portal_Spec.md`
+   - `docs/05_API_Spec.md`
+   - `docs/06_File_IO_and_Cleanup.md`
+   - `docs/07_Path_Safety.md`
+   - `docs/10_Caddy_Deployment.md`
+
+3. Choose the next task from `agents/tasks/` in numerical order unless instructed otherwise.
+4. For each task:
+   - Read the “Required reading” files listed at the top.
+   - Implement exactly what the task requests.
+   - Add tests and ensure acceptance criteria pass.
+   - Update documentation if the implementation reveals missing details.
+
+## Ground rules
+
+- Do not change portal semantics or cleanup invariants without updating the spec docs.
+- Do not expose the Control API via Caddy.
+- Do not add resumable upload protocols in v1 unless a task explicitly introduces it.
+- Prefer simplicity and reliability over performance tricks.
