@@ -10,6 +10,7 @@
 - Sweeper settings and temp dir names come from `internal/config` and are shared across services.
 - Portal lifecycle state is tracked in `control.Store` via `PortalState` and refreshed by `Store.SweepPortals`.
 - Public HTML UI is embedded in `internal/publicapi/server.go` for `/` and `/p/{portal_id}` pages.
+- Folder drop handling uses `webkitGetAsEntry` traversal in the portal UI script.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -89,4 +90,13 @@ Session: N/A
 - **Learnings for future iterations:**
   - The portal UI claims a portal before enabling uploads.
   - Sequential uploads use init + PUT with `X-Client-Token` from the browser.
+---
+
+## Thu Jan 29 11:50:15 PM MST 2026 - US-004
+Session: N/A
+- Implemented folder selection and drag-and-drop traversal for nested uploads.
+- Files changed: `internal/publicapi/server.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Folder selection uses `webkitdirectory` input and dropped folders are traversed via `webkitGetAsEntry`.
+  - Queue items store relpaths from `webkitRelativePath` or entry fullPath.
 ---

@@ -292,9 +292,10 @@ const portalPageHTML = `<!DOCTYPE html>
       <div class="status" id="portal-status" data-tone="info">Claiming portal...</div>
       <div class="controls">
         <input id="file-input" type="file" multiple>
+        <input id="folder-input" type="file" webkitdirectory directory>
         <button id="start-upload" class="button" disabled>Start upload</button>
       </div>
-      <div id="drop-zone" class="drop-zone">Drop files here</div>
+      <div id="drop-zone" class="drop-zone">Drop files or folders here</div>
       <div class="stats">
         <div class="stat">
           <div class="stat-label">Files queued</div>
@@ -325,6 +326,7 @@ const portalPageHTML = `<!DOCTYPE html>
       const portalLabel = document.getElementById("portal-id");
       const statusEl = document.getElementById("portal-status");
       const fileInput = document.getElementById("file-input");
+      const folderInput = document.getElementById("folder-input");
       const startButton = document.getElementById("start-upload");
       const dropZone = document.getElementById("drop-zone");
       const queueEl = document.getElementById("queue");
@@ -391,6 +393,7 @@ const portalPageHTML = `<!DOCTYPE html>
         const canStart = state.claimed && state.queue.length > 0 && !state.running;
         startButton.disabled = !canStart;
         fileInput.disabled = !state.claimed || state.running;
+        folderInput.disabled = !state.claimed || state.running;
         dropZone.classList.toggle("disabled", !state.claimed || state.running);
       }
 
@@ -428,13 +431,28 @@ const portalPageHTML = `<!DOCTYPE html>
         item.statusEl.textContent = statusText;
       }
 
-      function addFiles(fileList) {
-        const files = Array.from(fileList || []);
-        files.forEach((file) => {
+      function normalizeQueueItems(items) {
+        return Array.from(items || [])
+          .map((item) => {
+            if (!item) {
+              return null;
+            }
+            if (item.file) {
+              return item;
+            }
+            return { file: item, relpath: item.webkitRelativePath || item.name };
+          })
+          .filter(Boolean);
+      }
+
+      function addQueueItems(items) {
+        const queueItems = normalizeQueueItems(items);
+        queueItems.forEach((item) => {
+          const file = item.file;
           if (!file) {
             return;
           }
-          const relpath = file.webkitRelativePath || file.name;
+          const relpath = item.relpath || file.webkitRelativePath || file.name;
           const row = document.createElement("div");
           row.className = "queue-row";
           const nameEl = document.createElement("div");
@@ -457,6 +475,84 @@ const portalPageHTML = `<!DOCTYPE html>
         });
         updateSummary();
         updateControls();
+      }
+
+      function stripLeadingSlash(value) {
+        if (!value) {
+          return "";
+        }
+        return value.replace(/^\/+/, "");
+      }
+
+      function readDirectoryEntries(reader) {
+        return new Promise((resolve) => {
+          const entries = [];
+          const readBatch = () => {
+            reader.readEntries((batch) => {
+              if (!batch.length) {
+                resolve(entries);
+                return;
+              }
+              entries.push(...batch);
+              readBatch();
+            }, () => resolve(entries));
+          };
+          readBatch();
+        });
+      }
+
+      async function readEntryFiles(entry) {
+        if (!entry) {
+          return [];
+        }
+        if (entry.isFile) {
+          return new Promise((resolve) => {
+            entry.file((file) => {
+              const relpath = stripLeadingSlash(entry.fullPath) || file.webkitRelativePath || file.name;
+              resolve([{ file: file, relpath: relpath }]);
+            }, () => resolve([]));
+          });
+        }
+        if (entry.isDirectory) {
+          const reader = entry.createReader();
+          const entries = await readDirectoryEntries(reader);
+          const files = [];
+          for (const child of entries) {
+            const childFiles = await readEntryFiles(child);
+            files.push(...childFiles);
+          }
+          return files;
+        }
+        return [];
+      }
+
+      async function collectDropItems(dataTransfer) {
+        const items = Array.from((dataTransfer && dataTransfer.items) || []);
+        if (items.length === 0) {
+          return normalizeQueueItems(dataTransfer ? dataTransfer.files : []);
+        }
+        const files = [];
+        for (const item of items) {
+          if (item.kind !== "file") {
+            continue;
+          }
+          if (item.webkitGetAsEntry) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              const entryFiles = await readEntryFiles(entry);
+              files.push(...entryFiles);
+              continue;
+            }
+          }
+          const file = item.getAsFile ? item.getAsFile() : null;
+          if (file) {
+            files.push({
+              file: file,
+              relpath: file.webkitRelativePath || file.name
+            });
+          }
+        }
+        return files;
       }
 
       function makeUploadID() {
@@ -625,7 +721,15 @@ const portalPageHTML = `<!DOCTYPE html>
         if (!state.claimed || state.running) {
           return;
         }
-        addFiles(event.target.files);
+        addQueueItems(event.target.files);
+        event.target.value = "";
+      });
+
+      folderInput.addEventListener("change", (event) => {
+        if (!state.claimed || state.running) {
+          return;
+        }
+        addQueueItems(event.target.files);
         event.target.value = "";
       });
 
@@ -645,13 +749,14 @@ const portalPageHTML = `<!DOCTYPE html>
         dropZone.classList.remove("dragging");
       });
 
-      dropZone.addEventListener("drop", (event) => {
+      dropZone.addEventListener("drop", async (event) => {
         if (!state.claimed || state.running) {
           return;
         }
         event.preventDefault();
         dropZone.classList.remove("dragging");
-        addFiles(event.dataTransfer.files);
+        const droppedItems = await collectDropItems(event.dataTransfer);
+        addQueueItems(droppedItems);
       });
 
       updateSummary();
