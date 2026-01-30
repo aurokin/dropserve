@@ -4,6 +4,7 @@
 - Control API payload types live in `internal/control/api.go` for shared CLI/server use.
 - Control service binds to `DROPSERVE_CONTROL_ADDR` (default loopback).
 - Public API handlers live in `internal/publicapi` and share portal state via `control.Store`.
+- Path sanitization helpers live in `internal/pathsafe` for relpath validation.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -25,4 +26,14 @@ Session: N/A
 - **Learnings for future iterations:**
   - `control.Store` tracks client tokens and exposes `RequireClientToken` for public API auth checks.
   - `dropserve serve` now starts both control and public services from `cmd/dropserve/main.go`.
+---
+
+## Thu Jan 29 10:40:14 PM MST 2026 - US-005
+Session: N/A
+- Implemented relpath sanitization and containment checks for uploads.
+- Files changed: `internal/pathsafe/pathsafe.go`, `internal/pathsafe/pathsafe_test.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Use `pathsafe.SanitizeRelpath` and `pathsafe.JoinAndVerify` for relpath safety.
+  - Path validation tests live in `internal/pathsafe`.
+  - `go test ./...` exercises the new path safety checks.
 ---
