@@ -38,6 +38,10 @@ type ClaimPortalResponse struct {
 	Policy      ClaimPolicy `json:"policy"`
 }
 
+type ClosePortalResponse struct {
+	Status string `json:"status"`
+}
+
 type ClaimPolicy struct {
 	Overwrite  bool `json:"overwrite"`
 	Autorename bool `json:"autorename"`
@@ -110,6 +114,8 @@ func (s *Server) handlePortals(w http.ResponseWriter, r *http.Request) {
 		s.handleClaim(w, r, portalID)
 	case "uploads":
 		s.handleInitUpload(w, r, portalID)
+	case "close":
+		s.handleClose(w, r, portalID)
 	default:
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "not found"})
 	}
@@ -133,6 +139,8 @@ func (s *Server) handleClaim(w http.ResponseWriter, r *http.Request, portalID st
 			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
 		case errors.Is(err, control.ErrPortalAlreadyClaimed):
 			writeJSON(w, http.StatusConflict, errorResponse{Error: "portal already claimed"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
 		default:
 			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to claim portal"})
 		}
@@ -158,6 +166,24 @@ func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portal
 		return
 	}
 
+	portal, err := s.store.PortalByID(portalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, control.ErrPortalNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to load portal"})
+		}
+		return
+	}
+
+	if portal.State == control.PortalClosing {
+		writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		return
+	}
+
 	if !s.requireClientToken(w, r, portalID) {
 		return
 	}
@@ -176,12 +202,6 @@ func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portal
 	}
 	if req.Size < 0 {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "size must be non-negative"})
-		return
-	}
-
-	portal, err := s.store.PortalByID(portalID)
-	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
 		return
 	}
 
@@ -221,6 +241,8 @@ func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portal
 		switch {
 		case errors.Is(err, control.ErrPortalNotFound):
 			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
 		case errors.Is(err, control.ErrUploadAlreadyCommitted):
 			writeJSON(w, http.StatusConflict, errorResponse{Error: "upload already committed"})
 		case errors.Is(err, control.ErrUploadAlreadyExists):
@@ -259,6 +281,44 @@ func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portal
 		UploadID: req.UploadID,
 		PutURL:   "/api/uploads/" + req.UploadID,
 	})
+}
+
+func (s *Server) handleClose(w http.ResponseWriter, r *http.Request, portalID string) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
+		return
+	}
+
+	if err := decodeEmptyJSON(r); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid json"})
+		return
+	}
+
+	if !s.requireClientToken(w, r, portalID) {
+		return
+	}
+
+	portal, err := s.store.ClosePortal(portalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, control.ErrPortalNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to close portal"})
+		}
+		return
+	}
+
+	if portal.State == control.PortalClosing && portal.ActiveUploads > 0 {
+		writeJSON(w, http.StatusConflict, errorResponse{Error: "portal has active uploads"})
+		return
+	}
+
+	s.cleanupPortalTempDir(portal)
+
+	writeJSON(w, http.StatusOK, ClosePortalResponse{Status: "closed"})
 }
 
 func (s *Server) handleUploads(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +365,14 @@ func (s *Server) handleUploadStream(w http.ResponseWriter, r *http.Request, uplo
 
 	portal, err := s.store.PortalByID(upload.PortalID)
 	if err != nil {
-		writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		switch {
+		case errors.Is(err, control.ErrPortalNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to load portal"})
+		}
 		return
 	}
 
@@ -320,6 +387,8 @@ func (s *Server) handleUploadStream(w http.ResponseWriter, r *http.Request, uplo
 		switch {
 		case errors.Is(err, control.ErrPortalNotFound):
 			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
 		case errors.Is(err, control.ErrUploadNotFound):
 			writeJSON(w, http.StatusNotFound, errorResponse{Error: "upload not found"})
 		default:
@@ -461,6 +530,8 @@ func (s *Server) requireClientToken(w http.ResponseWriter, r *http.Request, port
 		switch {
 		case errors.Is(err, control.ErrPortalNotFound):
 			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
 		case errors.Is(err, control.ErrClientTokenRequired):
 			writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "client token required"})
 		case errors.Is(err, control.ErrClientTokenInvalid):
@@ -503,6 +574,16 @@ type uploadMetadata struct {
 	Policy       string `json:"policy"`
 	ClientSHA256 string `json:"client_sha256,omitempty"`
 	CreatedAt    string `json:"created_at"`
+}
+
+func (s *Server) cleanupPortalTempDir(portal control.Portal) {
+	if strings.TrimSpace(portal.DestAbs) == "" {
+		return
+	}
+	portalPath := filepath.Join(portal.DestAbs, s.tempDirName, portal.ID)
+	if err := os.RemoveAll(portalPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		s.logger.Printf("failed to remove portal temp dir: %v", err)
+	}
 }
 
 func (s *Server) uploadTempDir(destAbs, portalID string) string {

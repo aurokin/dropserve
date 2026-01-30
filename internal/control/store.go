@@ -15,11 +15,23 @@ const defaultOpenMinutes = 15
 var (
 	ErrPortalNotFound         = errors.New("portal not found")
 	ErrPortalAlreadyClaimed   = errors.New("portal already claimed")
+	ErrPortalClosed           = errors.New("portal closed")
 	ErrClientTokenRequired    = errors.New("client token required")
 	ErrClientTokenInvalid     = errors.New("client token invalid")
 	ErrUploadNotFound         = errors.New("upload not found")
 	ErrUploadAlreadyCommitted = errors.New("upload already committed")
 	ErrUploadAlreadyExists    = errors.New("upload already exists")
+)
+
+type PortalState string
+
+const (
+	PortalOpen    PortalState = "open"
+	PortalClaimed PortalState = "claimed"
+	PortalInUse   PortalState = "in_use"
+	PortalClosing PortalState = "closing"
+	PortalClosed  PortalState = "closed"
+	PortalExpired PortalState = "expired"
 )
 
 type Portal struct {
@@ -32,6 +44,7 @@ type Portal struct {
 	AutorenameOnConflict bool
 	ClientTokens         map[string]struct{}
 	ActiveUploads        int
+	State                PortalState
 }
 
 type UploadStatus string
@@ -111,6 +124,7 @@ func (s *Store) CreatePortal(input CreatePortalInput) (Portal, error) {
 		DefaultPolicy:        input.DefaultPolicy,
 		AutorenameOnConflict: input.AutorenameOnConflict,
 		ClientTokens:         make(map[string]struct{}),
+		State:                PortalOpen,
 	}
 
 	s.mu.Lock()
@@ -129,6 +143,15 @@ func (s *Store) ClaimPortal(id string) (ClaimPortalResult, error) {
 		return ClaimPortalResult{}, ErrPortalNotFound
 	}
 
+	updated, changed := s.refreshPortalLocked(portal, time.Now())
+	if changed {
+		portal = updated
+		s.portals[id] = portal
+	}
+	if portal.State == PortalClosed || portal.State == PortalExpired || portal.State == PortalClosing {
+		return ClaimPortalResult{}, ErrPortalClosed
+	}
+
 	if !portal.Reusable && len(portal.ClientTokens) > 0 {
 		return ClaimPortalResult{}, ErrPortalAlreadyClaimed
 	}
@@ -142,6 +165,15 @@ func (s *Store) ClaimPortal(id string) (ClaimPortalResult, error) {
 		portal.ClientTokens = make(map[string]struct{})
 	}
 	portal.ClientTokens[clientToken] = struct{}{}
+
+	if portal.Reusable {
+		if portal.State == PortalOpen {
+			portal.State = PortalInUse
+		}
+	} else if portal.State == PortalOpen {
+		portal.State = PortalClaimed
+	}
+
 	s.portals[id] = portal
 
 	return ClaimPortalResult{Portal: portal, ClientToken: clientToken}, nil
@@ -154,6 +186,15 @@ func (s *Store) RequireClientToken(id, token string) error {
 	portal, ok := s.portals[id]
 	if !ok {
 		return ErrPortalNotFound
+	}
+
+	updated, changed := s.refreshPortalLocked(portal, time.Now())
+	if changed {
+		portal = updated
+		s.portals[id] = portal
+	}
+	if portal.State == PortalClosed || portal.State == PortalExpired {
+		return ErrPortalClosed
 	}
 
 	if !portal.Reusable && len(portal.ClientTokens) == 0 {
@@ -184,6 +225,46 @@ func (s *Store) PortalByID(id string) (Portal, error) {
 		return Portal{}, ErrPortalNotFound
 	}
 
+	updated, changed := s.refreshPortalLocked(portal, time.Now())
+	if changed {
+		portal = updated
+		s.portals[id] = portal
+	}
+	if portal.State == PortalClosed || portal.State == PortalExpired {
+		return Portal{}, ErrPortalClosed
+	}
+
+	return portal, nil
+}
+
+func (s *Store) ClosePortal(id string) (Portal, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	portal, ok := s.portals[id]
+	if !ok {
+		return Portal{}, ErrPortalNotFound
+	}
+
+	updated, changed := s.refreshPortalLocked(portal, time.Now())
+	if changed {
+		portal = updated
+	}
+	if portal.State == PortalClosed || portal.State == PortalExpired {
+		if changed {
+			s.portals[id] = portal
+		}
+		return Portal{}, ErrPortalClosed
+	}
+
+	if portal.State != PortalClosing {
+		portal.State = PortalClosing
+	}
+	if portal.ActiveUploads == 0 {
+		portal.State = PortalClosed
+	}
+	s.portals[id] = portal
+
 	return portal, nil
 }
 
@@ -196,6 +277,48 @@ func (s *Store) ListPortals() []Portal {
 		portals = append(portals, portal)
 	}
 	return portals
+}
+
+func (s *Store) SweepPortals(now time.Time) []Portal {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	closed := make([]Portal, 0)
+	for id, portal := range s.portals {
+		previous := portal.State
+		updated, changed := s.refreshPortalLocked(portal, now)
+		if changed {
+			s.portals[id] = updated
+		}
+		if previous != updated.State && (updated.State == PortalClosed || updated.State == PortalExpired) {
+			closed = append(closed, updated)
+		}
+	}
+	return closed
+}
+
+func (s *Store) refreshPortalLocked(portal Portal, now time.Time) (Portal, bool) {
+	changed := false
+	if portal.State == PortalClosed || portal.State == PortalExpired {
+		return portal, false
+	}
+
+	if now.After(portal.OpenUntil) {
+		if portal.State == PortalOpen {
+			portal.State = PortalExpired
+			changed = true
+		} else if portal.State != PortalClosing {
+			portal.State = PortalClosing
+			changed = true
+		}
+	}
+
+	if portal.State == PortalClosing && portal.ActiveUploads == 0 {
+		portal.State = PortalClosed
+		changed = true
+	}
+
+	return portal, changed
 }
 
 func (s *Store) ActiveUploadIDs() map[string]struct{} {
@@ -215,8 +338,20 @@ func (s *Store) CreateUpload(input CreateUploadInput) (Upload, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.portals[input.PortalID]; !ok {
+	portal, ok := s.portals[input.PortalID]
+	if !ok {
 		return Upload{}, ErrPortalNotFound
+	}
+
+	updated, changed := s.refreshPortalLocked(portal, time.Now())
+	if changed {
+		portal = updated
+	}
+	if portal.State == PortalClosed || portal.State == PortalExpired || portal.State == PortalClosing {
+		if changed {
+			s.portals[input.PortalID] = portal
+		}
+		return Upload{}, ErrPortalClosed
 	}
 
 	if existing, ok := s.uploads[input.UploadID]; ok {
@@ -240,6 +375,10 @@ func (s *Store) CreateUpload(input CreateUploadInput) (Upload, error) {
 		UpdatedAt:     now,
 	}
 
+	if portal.State == PortalOpen || portal.State == PortalClaimed {
+		portal.State = PortalInUse
+	}
+	s.portals[input.PortalID] = portal
 	s.uploads[input.UploadID] = upload
 	return upload, nil
 }
@@ -274,6 +413,17 @@ func (s *Store) StartUpload(id string) (Upload, error) {
 		return Upload{}, ErrPortalNotFound
 	}
 
+	updated, changed := s.refreshPortalLocked(portal, time.Now())
+	if changed {
+		portal = updated
+	}
+	if portal.State == PortalClosed || portal.State == PortalExpired {
+		if changed {
+			s.portals[portal.ID] = portal
+		}
+		return Upload{}, ErrPortalClosed
+	}
+
 	portal.ActiveUploads++
 	upload.Active = true
 	upload.UpdatedAt = time.Now()
@@ -290,9 +440,12 @@ func (s *Store) DeleteUpload(id string) {
 	upload, ok := s.uploads[id]
 	if ok && upload.Active {
 		portal, ok := s.portals[upload.PortalID]
-		if ok && portal.ActiveUploads > 0 {
-			portal.ActiveUploads--
-			s.portals[portal.ID] = portal
+		if ok {
+			if portal.ActiveUploads > 0 {
+				portal.ActiveUploads--
+			}
+			updated, _ := s.refreshPortalLocked(portal, time.Now())
+			s.portals[portal.ID] = updated
 		}
 	}
 
@@ -310,9 +463,12 @@ func (s *Store) MarkUploadCommitted(id, serverSHA256, finalRelpath string, bytes
 
 	if upload.Active {
 		portal, ok := s.portals[upload.PortalID]
-		if ok && portal.ActiveUploads > 0 {
-			portal.ActiveUploads--
-			s.portals[portal.ID] = portal
+		if ok {
+			if portal.ActiveUploads > 0 {
+				portal.ActiveUploads--
+			}
+			updated, _ := s.refreshPortalLocked(portal, time.Now())
+			s.portals[portal.ID] = updated
 		}
 		upload.Active = false
 	}
@@ -338,9 +494,12 @@ func (s *Store) MarkUploadFailed(id string) (Upload, error) {
 
 	if upload.Active {
 		portal, ok := s.portals[upload.PortalID]
-		if ok && portal.ActiveUploads > 0 {
-			portal.ActiveUploads--
-			s.portals[portal.ID] = portal
+		if ok {
+			if portal.ActiveUploads > 0 {
+				portal.ActiveUploads--
+			}
+			updated, _ := s.refreshPortalLocked(portal, time.Now())
+			s.portals[portal.ID] = updated
 		}
 		upload.Active = false
 	}

@@ -62,6 +62,9 @@ func (s *Sweeper) Run(ctx context.Context) {
 }
 
 func (s *Sweeper) RunOnce(ctx context.Context) error {
+	closedPortals := s.refreshPortalStates()
+	s.cleanupClosedPortals(closedPortals)
+
 	activeUploads := s.activeUploadIDs()
 	activePortals := s.activePortalIDs()
 	roots := s.sweepRoots()
@@ -104,6 +107,29 @@ func (s *Sweeper) sweepRoots() []string {
 		out = append(out, root)
 	}
 	return out
+}
+
+func (s *Sweeper) refreshPortalStates() []control.Portal {
+	if s.store == nil {
+		return nil
+	}
+	return s.store.SweepPortals(time.Now())
+}
+
+func (s *Sweeper) cleanupClosedPortals(portals []control.Portal) {
+	for _, portal := range portals {
+		if strings.TrimSpace(portal.DestAbs) == "" {
+			continue
+		}
+		portalPath := filepath.Join(portal.DestAbs, s.cfg.TempDirName, portal.ID)
+		if err := os.RemoveAll(portalPath); err != nil {
+			if !os.IsNotExist(err) {
+				s.logger.Printf("sweeper portal cleanup failed path=%s err=%v", portalPath, err)
+			}
+			continue
+		}
+		s.logger.Printf("sweeper removed closed portal dir path=%s", portalPath)
+	}
 }
 
 func (s *Sweeper) activePortalIDs() map[string]struct{} {

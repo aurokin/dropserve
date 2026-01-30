@@ -8,6 +8,7 @@
 - Upload state is tracked in `control.Store` and mirrored as `.dropserve_tmp/<portal_id>/uploads/{upload_id}.json` metadata.
 - Track active upload counts with `Store.StartUpload`, `MarkUploadFailed`, and `MarkUploadCommitted`.
 - Sweeper settings and temp dir names come from `internal/config` and are shared across services.
+- Portal lifecycle state is tracked in `control.Store` via `PortalState` and refreshed by `Store.SweepPortals`.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -68,4 +69,14 @@ Session: N/A
   - The sweeper in `internal/sweeper` uses `control.Store` snapshots to skip active uploads.
   - Startup sweep runs before servers accept requests in `cmd/dropserve/main.go`.
   - Sweep roots default to the current working directory via `DROPSERVE_SWEEP_ROOTS`.
+---
+
+## Thu Jan 29 11:35:59 PM MST 2026 - US-010
+Session: N/A
+- Implemented portal expiry/closing state transitions plus a public close endpoint with cleanup.
+- Files changed: `internal/control/store.go`, `internal/publicapi/server.go`, `internal/sweeper/sweeper.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Portal state transitions are refreshed via `Store.SweepPortals` and `refreshPortalLocked`.
+  - `/api/portals/{portal_id}/close` returns 409 when active uploads remain.
+  - Closed/expired portal temp dirs are removed by the close handler and sweeper.
 ---
