@@ -5,6 +5,7 @@
 - Control service binds to `DROPSERVE_CONTROL_ADDR` (default loopback).
 - Public API handlers live in `internal/publicapi` and share portal state via `control.Store`.
 - Path sanitization helpers live in `internal/pathsafe` for relpath validation.
+- Upload state is tracked in `control.Store` and mirrored as `.dropserve_tmp/<portal_id>/uploads/{upload_id}.json` metadata.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -36,4 +37,13 @@ Session: N/A
   - Use `pathsafe.SanitizeRelpath` and `pathsafe.JoinAndVerify` for relpath safety.
   - Path validation tests live in `internal/pathsafe`.
   - `go test ./...` exercises the new path safety checks.
+---
+
+## Thu Jan 29 10:53:15 PM MST 2026 - US-006
+Session: N/A
+- Implemented upload initialization, streaming, hashing, and atomic commit handling.
+- Files changed: `internal/control/store.go`, `internal/control/server.go`, `internal/publicapi/server.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Upload metadata is written to `.dropserve_tmp/<portal_id>/uploads` during init and used for cleanup workflows.
+  - `PUT /api/uploads/{upload_id}` validates `Content-Length` and optional client SHA-256 before rename.
 ---

@@ -60,7 +60,7 @@ func (s *Server) handleCreatePortal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	policy, err := normalizePolicy(req.DefaultPolicy)
+	policy, err := NormalizePolicy(req.DefaultPolicy)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: err.Error()})
 		return
@@ -104,7 +104,7 @@ func newRequestID() string {
 	return "r_" + time.Now().UTC().Format("20060102T150405.000000000")
 }
 
-func normalizePolicy(policy string) (string, error) {
+func NormalizePolicy(policy string) (string, error) {
 	trimmed := strings.TrimSpace(strings.ToLower(policy))
 	if trimmed == "" {
 		return "overwrite", nil
