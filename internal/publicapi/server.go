@@ -78,6 +78,590 @@ type UploadStatusResponse struct {
 
 type requestIDKey struct{}
 
+const landingPageHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DropServe</title>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #f5f7fb;
+      color: #1a1d21;
+    }
+    main {
+      max-width: 720px;
+      margin: 48px auto;
+      padding: 0 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 32px;
+    }
+    p {
+      margin: 0 0 12px;
+      color: #475467;
+      line-height: 1.5;
+    }
+    code {
+      background: #eef2f6;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: "SFMono-Regular", ui-monospace, monospace;
+      font-size: 0.95em;
+    }
+    ol {
+      margin: 16px 0 0 20px;
+      padding: 0;
+      color: #344054;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>DropServe</h1>
+      <p>Open a portal from your server terminal and share the URL with someone on your LAN.</p>
+      <ol>
+        <li>Run <code>dropserve open</code> inside the destination folder.</li>
+        <li>Copy the URL shown in the CLI.</li>
+        <li>Open that URL in a LAN browser to upload files.</li>
+      </ol>
+    </div>
+  </main>
+</body>
+</html>`
+
+const portalPageHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DropServe Portal</title>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #f5f7fb;
+      color: #1a1d21;
+    }
+    main {
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 20px 60px;
+      display: grid;
+      gap: 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: 28px;
+    }
+    .muted {
+      color: #475467;
+      font-size: 14px;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .status[data-tone="error"] {
+      color: #b42318;
+    }
+    .status[data-tone="ok"] {
+      color: #027a48;
+    }
+    .status[data-tone="info"] {
+      color: #364152;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 16px;
+    }
+    .button {
+      border: none;
+      background: #2e90fa;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .button:disabled {
+      background: #94c5fd;
+      cursor: not-allowed;
+    }
+    .drop-zone {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      color: #667085;
+      background: #f8fafc;
+    }
+    .drop-zone.dragging {
+      border-color: #2e90fa;
+      color: #1d4ed8;
+      background: #eff6ff;
+    }
+    .drop-zone.disabled {
+      opacity: 0.6;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .stat {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .stat-label {
+      color: #667085;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .stat-value {
+      margin-top: 4px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .queue {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .queue-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #ffffff;
+    }
+    .queue-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .queue-status {
+      color: #475467;
+      min-width: 120px;
+      text-align: right;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>Upload Portal</h1>
+      <div class="muted">Portal ID: <span id="portal-id">...</span></div>
+      <div class="status" id="portal-status" data-tone="info">Claiming portal...</div>
+      <div class="controls">
+        <input id="file-input" type="file" multiple>
+        <button id="start-upload" class="button" disabled>Start upload</button>
+      </div>
+      <div id="drop-zone" class="drop-zone">Drop files here</div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Files queued</div>
+          <div class="stat-value" id="file-count">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Total bytes</div>
+          <div class="stat-value" id="total-bytes">0 B</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Bytes uploaded</div>
+          <div class="stat-value" id="uploaded-bytes">0 B</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Rolling speed</div>
+          <div class="stat-value" id="speed">0 B/s</div>
+        </div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Queue</h2>
+      <div class="queue" id="queue"></div>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const portalId = getPortalId();
+      const portalLabel = document.getElementById("portal-id");
+      const statusEl = document.getElementById("portal-status");
+      const fileInput = document.getElementById("file-input");
+      const startButton = document.getElementById("start-upload");
+      const dropZone = document.getElementById("drop-zone");
+      const queueEl = document.getElementById("queue");
+      const totalEl = document.getElementById("total-bytes");
+      const uploadedEl = document.getElementById("uploaded-bytes");
+      const speedEl = document.getElementById("speed");
+      const fileCountEl = document.getElementById("file-count");
+
+      const state = {
+        portalId: portalId,
+        clientToken: "",
+        defaultPolicy: "overwrite",
+        claimed: false,
+        queue: [],
+        running: false,
+        totalBytes: 0,
+        completedBytes: 0,
+        currentLoaded: 0,
+        uploadedBytes: 0,
+        lastSpeedBytes: 0,
+        lastSpeedTime: 0,
+        speedBps: 0,
+        speedTimer: null
+      };
+
+      portalLabel.textContent = portalId || "unknown";
+
+      function getPortalId() {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        if (parts.length < 2) {
+          return "";
+        }
+        return parts[1];
+      }
+
+      function setStatus(message, tone) {
+        statusEl.textContent = message;
+        statusEl.dataset.tone = tone || "info";
+      }
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes)) {
+          return "0 B";
+        }
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes;
+        let unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.length - 1) {
+          value /= 1024;
+          unitIndex += 1;
+        }
+        const digits = value >= 10 || unitIndex === 0 ? 0 : 1;
+        return value.toFixed(digits) + " " + units[unitIndex];
+      }
+
+      function updateSummary() {
+        totalEl.textContent = formatBytes(state.totalBytes);
+        uploadedEl.textContent = formatBytes(state.uploadedBytes);
+        speedEl.textContent = formatBytes(state.speedBps) + "/s";
+        fileCountEl.textContent = String(state.queue.length);
+      }
+
+      function updateControls() {
+        const canStart = state.claimed && state.queue.length > 0 && !state.running;
+        startButton.disabled = !canStart;
+        fileInput.disabled = !state.claimed || state.running;
+        dropZone.classList.toggle("disabled", !state.claimed || state.running);
+      }
+
+      function startSpeedTimer() {
+        if (state.speedTimer) {
+          return;
+        }
+        state.lastSpeedBytes = state.uploadedBytes;
+        state.lastSpeedTime = performance.now();
+        state.speedTimer = setInterval(() => {
+          const now = performance.now();
+          const deltaBytes = state.uploadedBytes - state.lastSpeedBytes;
+          const deltaTime = (now - state.lastSpeedTime) / 1000;
+          if (deltaTime > 0) {
+            state.speedBps = Math.max(0, deltaBytes / deltaTime);
+          }
+          state.lastSpeedBytes = state.uploadedBytes;
+          state.lastSpeedTime = now;
+          updateSummary();
+        }, 500);
+      }
+
+      function stopSpeedTimer() {
+        if (!state.speedTimer) {
+          return;
+        }
+        clearInterval(state.speedTimer);
+        state.speedTimer = null;
+        state.speedBps = 0;
+        updateSummary();
+      }
+
+      function updateQueueItem(item, statusText) {
+        item.status = statusText;
+        item.statusEl.textContent = statusText;
+      }
+
+      function addFiles(fileList) {
+        const files = Array.from(fileList || []);
+        files.forEach((file) => {
+          if (!file) {
+            return;
+          }
+          const relpath = file.webkitRelativePath || file.name;
+          const row = document.createElement("div");
+          row.className = "queue-row";
+          const nameEl = document.createElement("div");
+          nameEl.className = "queue-name";
+          nameEl.textContent = relpath;
+          const statusEl = document.createElement("div");
+          statusEl.className = "queue-status";
+          statusEl.textContent = "queued";
+          row.appendChild(nameEl);
+          row.appendChild(statusEl);
+          queueEl.appendChild(row);
+          state.queue.push({
+            file: file,
+            relpath: relpath,
+            status: "queued",
+            rowEl: row,
+            statusEl: statusEl
+          });
+          state.totalBytes += file.size;
+        });
+        updateSummary();
+        updateControls();
+      }
+
+      function makeUploadID() {
+        if (window.crypto && window.crypto.randomUUID) {
+          return window.crypto.randomUUID();
+        }
+        return "u_" + Math.random().toString(16).slice(2) + Date.now().toString(16);
+      }
+
+      async function claimPortal() {
+        if (!state.portalId) {
+          setStatus("Invalid portal URL.", "error");
+          return;
+        }
+        setStatus("Claiming portal...", "info");
+        try {
+          const response = await fetch("/api/portals/" + state.portalId + "/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}"
+          });
+          if (!response.ok) {
+            const message = await readError(response);
+            setStatus(message, "error");
+            return;
+          }
+          const data = await response.json();
+          state.clientToken = data.client_token;
+          if (data.policy && data.policy.autorename) {
+            state.defaultPolicy = "autorename";
+          } else {
+            state.defaultPolicy = "overwrite";
+          }
+          state.claimed = true;
+          setStatus("Portal ready. Add files to upload.", "ok");
+          updateControls();
+        } catch (error) {
+          setStatus("Failed to claim portal.", "error");
+        }
+      }
+
+      async function readError(response) {
+        try {
+          const data = await response.json();
+          if (data && data.error) {
+            return data.error;
+          }
+        } catch (error) {
+        }
+        return response.statusText || "request failed";
+      }
+
+      async function initUpload(item) {
+        const payload = {
+          upload_id: makeUploadID(),
+          relpath: item.relpath,
+          size: item.file.size,
+          client_sha256: null,
+          policy: state.defaultPolicy
+        };
+        const response = await fetch("/api/portals/" + state.portalId + "/uploads", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Client-Token": state.clientToken
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const message = await readError(response);
+          throw new Error(message);
+        }
+        return response.json();
+      }
+
+      function putUpload(item, putUrl) {
+        return new Promise((resolve, reject) => {
+          const request = new XMLHttpRequest();
+          request.open("PUT", putUrl);
+          request.setRequestHeader("X-Client-Token", state.clientToken);
+          request.upload.onprogress = (event) => {
+            if (!event.lengthComputable) {
+              return;
+            }
+            state.currentLoaded = event.loaded;
+            state.uploadedBytes = state.completedBytes + event.loaded;
+            updateSummary();
+            const percent = item.file.size > 0
+              ? Math.round((event.loaded / item.file.size) * 100)
+              : 100;
+            updateQueueItem(item, "uploading " + percent + "%");
+          };
+          request.onload = () => {
+            if (request.status >= 200 && request.status < 300) {
+              resolve(request.responseText);
+              return;
+            }
+            let message = request.statusText || "upload failed";
+            try {
+              const data = JSON.parse(request.responseText);
+              if (data && data.error) {
+                message = data.error;
+              }
+            } catch (error) {
+            }
+            reject(new Error(message));
+          };
+          request.onerror = () => reject(new Error("network error"));
+          request.send(item.file);
+        });
+      }
+
+      async function runQueue() {
+        if (state.running || !state.claimed || state.queue.length === 0) {
+          return;
+        }
+        state.running = true;
+        state.completedBytes = 0;
+        state.currentLoaded = 0;
+        state.uploadedBytes = 0;
+        updateSummary();
+        updateControls();
+        startSpeedTimer();
+
+        for (let index = 0; index < state.queue.length; index += 1) {
+          const item = state.queue[index];
+          updateQueueItem(item, "initializing");
+          let initResponse;
+          try {
+            initResponse = await initUpload(item);
+          } catch (error) {
+            updateQueueItem(item, "failed");
+            setStatus("Upload failed: " + error.message, "error");
+            state.running = false;
+            stopSpeedTimer();
+            updateControls();
+            return;
+          }
+
+          updateQueueItem(item, "uploading 0%");
+          try {
+            await putUpload(item, initResponse.put_url);
+          } catch (error) {
+            updateQueueItem(item, "failed");
+            setStatus("Upload failed: " + error.message, "error");
+            state.running = false;
+            stopSpeedTimer();
+            updateControls();
+            return;
+          }
+
+          updateQueueItem(item, "done");
+          state.completedBytes += item.file.size;
+          state.currentLoaded = 0;
+          state.uploadedBytes = state.completedBytes;
+          updateSummary();
+        }
+
+        state.running = false;
+        stopSpeedTimer();
+        setStatus("All uploads complete.", "ok");
+        updateControls();
+      }
+
+      fileInput.addEventListener("change", (event) => {
+        if (!state.claimed || state.running) {
+          return;
+        }
+        addFiles(event.target.files);
+        event.target.value = "";
+      });
+
+      startButton.addEventListener("click", () => {
+        runQueue();
+      });
+
+      dropZone.addEventListener("dragover", (event) => {
+        if (!state.claimed || state.running) {
+          return;
+        }
+        event.preventDefault();
+        dropZone.classList.add("dragging");
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragging");
+      });
+
+      dropZone.addEventListener("drop", (event) => {
+        if (!state.claimed || state.running) {
+          return;
+        }
+        event.preventDefault();
+        dropZone.classList.remove("dragging");
+        addFiles(event.dataTransfer.files);
+      });
+
+      updateSummary();
+      updateControls();
+      claimPortal();
+    })();
+  </script>
+</body>
+</html>`
+
 func NewServer(store *control.Store, logger *log.Logger) *Server {
 	return &Server{
 		store:       store,
@@ -90,7 +674,48 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/portals/", s.handlePortals)
 	mux.HandleFunc("/api/uploads/", s.handleUploads)
+	mux.HandleFunc("/p/", s.handlePortalPage)
+	mux.HandleFunc("/", s.handleLanding)
 	return s.withRequestID(mux)
+}
+
+func (s *Server) handleLanding(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
+		return
+	}
+	writeHTML(w, http.StatusOK, landingPageHTML)
+}
+
+func (s *Server) handlePortalPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
+		return
+	}
+
+	pathValue := strings.TrimPrefix(r.URL.Path, "/p/")
+	if pathValue == r.URL.Path {
+		http.NotFound(w, r)
+		return
+	}
+
+	segments := strings.Split(strings.Trim(pathValue, "/"), "/")
+	if len(segments) != 1 || strings.TrimSpace(segments[0]) == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	portalID := segments[0]
+	if _, err := s.store.PortalByID(portalID); err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	writeHTML(w, http.StatusOK, portalPageHTML)
 }
 
 func (s *Server) handlePortals(w http.ResponseWriter, r *http.Request) {
@@ -677,6 +1302,12 @@ func (s *Server) withRequestID(next http.Handler) http.Handler {
 
 func newRequestID() string {
 	return "r_" + time.Now().UTC().Format("20060102T150405.000000000")
+}
+
+func writeHTML(w http.ResponseWriter, status int, body string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = io.WriteString(w, body)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {

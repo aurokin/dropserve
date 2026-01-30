@@ -9,6 +9,7 @@
 - Track active upload counts with `Store.StartUpload`, `MarkUploadFailed`, and `MarkUploadCommitted`.
 - Sweeper settings and temp dir names come from `internal/config` and are shared across services.
 - Portal lifecycle state is tracked in `control.Store` via `PortalState` and refreshed by `Store.SweepPortals`.
+- Public HTML UI is embedded in `internal/publicapi/server.go` for `/` and `/p/{portal_id}` pages.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -79,4 +80,13 @@ Session: N/A
   - Portal state transitions are refreshed via `Store.SweepPortals` and `refreshPortalLocked`.
   - `/api/portals/{portal_id}/close` returns 409 when active uploads remain.
   - Closed/expired portal temp dirs are removed by the close handler and sweeper.
+---
+
+## Thu Jan 29 11:44:57 PM MST 2026 - US-003
+Session: N/A
+- Implemented landing and portal pages with sequential uploads, queue state, and progress stats.
+- Files changed: `internal/publicapi/server.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - The portal UI claims a portal before enabling uploads.
+  - Sequential uploads use init + PUT with `X-Client-Token` from the browser.
 ---
