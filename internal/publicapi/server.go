@@ -60,6 +60,26 @@ type InitUploadResponse struct {
 	PutURL   string `json:"put_url"`
 }
 
+type PreflightItem struct {
+	Relpath string `json:"relpath"`
+	Size    int64  `json:"size"`
+}
+
+type PreflightRequest struct {
+	Items []PreflightItem `json:"items"`
+}
+
+type PreflightConflict struct {
+	Relpath string `json:"relpath"`
+	Reason  string `json:"reason"`
+}
+
+type PreflightResponse struct {
+	TotalFiles int                 `json:"total_files"`
+	TotalBytes int64               `json:"total_bytes"`
+	Conflicts  []PreflightConflict `json:"conflicts"`
+}
+
 type UploadCommitResponse struct {
 	Status        string `json:"status"`
 	Relpath       string `json:"relpath"`
@@ -282,6 +302,36 @@ const portalPageHTML = `<!DOCTYPE html>
       text-align: right;
       font-weight: 600;
     }
+    .conflict-panel {
+      margin-top: 16px;
+      border-radius: 12px;
+      border: 1px solid #fecdca;
+      background: #fff4ed;
+      padding: 12px 14px;
+      color: #7a271a;
+    }
+    .conflict-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .conflict-message {
+      font-size: 14px;
+      color: #7a271a;
+    }
+    .conflict-toggle {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 14px;
+      color: #5c2a1b;
+    }
+    .conflict-toggle input {
+      accent-color: #2e90fa;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -296,6 +346,14 @@ const portalPageHTML = `<!DOCTYPE html>
         <button id="start-upload" class="button" disabled>Start upload</button>
       </div>
       <div id="drop-zone" class="drop-zone">Drop files or folders here</div>
+      <div id="conflict-panel" class="conflict-panel hidden">
+        <div class="conflict-title">Filename conflicts detected</div>
+        <div class="conflict-message" id="conflict-message"></div>
+        <label class="conflict-toggle">
+          <input type="checkbox" id="autorename-toggle">
+          Auto-rename conflicts instead
+        </label>
+      </div>
       <div class="stats">
         <div class="stat">
           <div class="stat-label">Files queued</div>
@@ -334,6 +392,9 @@ const portalPageHTML = `<!DOCTYPE html>
       const uploadedEl = document.getElementById("uploaded-bytes");
       const speedEl = document.getElementById("speed");
       const fileCountEl = document.getElementById("file-count");
+      const conflictPanel = document.getElementById("conflict-panel");
+      const conflictMessage = document.getElementById("conflict-message");
+      const autorenameToggle = document.getElementById("autorename-toggle");
 
       const state = {
         portalId: portalId,
@@ -341,6 +402,7 @@ const portalPageHTML = `<!DOCTYPE html>
         defaultPolicy: "overwrite",
         claimed: false,
         queue: [],
+        conflicts: [],
         running: false,
         totalBytes: 0,
         completedBytes: 0,
@@ -395,6 +457,9 @@ const portalPageHTML = `<!DOCTYPE html>
         fileInput.disabled = !state.claimed || state.running;
         folderInput.disabled = !state.claimed || state.running;
         dropZone.classList.toggle("disabled", !state.claimed || state.running);
+        if (autorenameToggle) {
+          autorenameToggle.disabled = !state.claimed || state.running || state.conflicts.length === 0;
+        }
       }
 
       function startSpeedTimer() {
@@ -429,6 +494,66 @@ const portalPageHTML = `<!DOCTYPE html>
       function updateQueueItem(item, statusText) {
         item.status = statusText;
         item.statusEl.textContent = statusText;
+      }
+
+      function updateConflictPanel(conflicts) {
+        const count = conflicts.length;
+        state.conflicts = conflicts;
+        if (!conflictPanel || !conflictMessage || !autorenameToggle) {
+          updateControls();
+          return;
+        }
+        if (count === 0) {
+          conflictPanel.classList.add("hidden");
+          conflictMessage.textContent = "";
+          updateControls();
+          return;
+        }
+        const verb = state.defaultPolicy === "autorename" ? "auto-renamed" : "overwritten";
+        const label = count === 1 ? "file" : "files";
+        conflictMessage.textContent = count + " " + label + " already exist and will be " + verb + ".";
+        autorenameToggle.checked = state.defaultPolicy === "autorename";
+        conflictPanel.classList.remove("hidden");
+        updateControls();
+      }
+
+      async function runPreflight(showError) {
+        if (!state.claimed || state.running || state.queue.length === 0) {
+          updateConflictPanel([]);
+          return true;
+        }
+        const payload = {
+          items: state.queue.map((item) => ({
+            relpath: item.relpath,
+            size: item.file.size
+          }))
+        };
+        try {
+          const response = await fetch("/api/portals/" + state.portalId + "/preflight", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Client-Token": state.clientToken
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) {
+            if (showError) {
+              const message = await readError(response);
+              setStatus("Preflight failed: " + message, "error");
+            }
+            return false;
+          }
+          const data = await response.json();
+          const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
+          updateConflictPanel(conflicts);
+          return true;
+        } catch (error) {
+          if (showError) {
+            setStatus("Preflight failed.", "error");
+          }
+          return false;
+        }
       }
 
       function normalizeQueueItems(items) {
@@ -475,6 +600,7 @@ const portalPageHTML = `<!DOCTYPE html>
         });
         updateSummary();
         updateControls();
+        runPreflight(false);
       }
 
       function stripLeadingSlash(value) {
@@ -589,6 +715,7 @@ const portalPageHTML = `<!DOCTYPE html>
           state.claimed = true;
           setStatus("Portal ready. Add files to upload.", "ok");
           updateControls();
+          runPreflight(false);
         } catch (error) {
           setStatus("Failed to claim portal.", "error");
         }
@@ -669,6 +796,11 @@ const portalPageHTML = `<!DOCTYPE html>
         if (state.running || !state.claimed || state.queue.length === 0) {
           return;
         }
+        const preflightOk = await runPreflight(true);
+        if (!preflightOk) {
+          updateControls();
+          return;
+        }
         state.running = true;
         state.completedBytes = 0;
         state.currentLoaded = 0;
@@ -736,6 +868,13 @@ const portalPageHTML = `<!DOCTYPE html>
       startButton.addEventListener("click", () => {
         runQueue();
       });
+
+      if (autorenameToggle) {
+        autorenameToggle.addEventListener("change", () => {
+          state.defaultPolicy = autorenameToggle.checked ? "autorename" : "overwrite";
+          updateConflictPanel(state.conflicts);
+        });
+      }
 
       dropZone.addEventListener("dragover", (event) => {
         if (!state.claimed || state.running) {
@@ -844,6 +983,8 @@ func (s *Server) handlePortals(w http.ResponseWriter, r *http.Request) {
 		s.handleClaim(w, r, portalID)
 	case "uploads":
 		s.handleInitUpload(w, r, portalID)
+	case "preflight":
+		s.handlePreflight(w, r, portalID)
 	case "close":
 		s.handleClose(w, r, portalID)
 	default:
@@ -888,6 +1029,77 @@ func (s *Server) handleClaim(w http.ResponseWriter, r *http.Request, portalID st
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handlePreflight(w http.ResponseWriter, r *http.Request, portalID string) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
+		return
+	}
+
+	portal, err := s.store.PortalByID(portalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, control.ErrPortalNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to load portal"})
+		}
+		return
+	}
+
+	if portal.State == control.PortalClosing {
+		writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		return
+	}
+
+	if !s.requireClientToken(w, r, portalID) {
+		return
+	}
+
+	var req PreflightRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid json"})
+		return
+	}
+
+	totalBytes := int64(0)
+	conflicts := make([]PreflightConflict, 0)
+	for _, item := range req.Items {
+		if item.Size < 0 {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "size must be non-negative"})
+			return
+		}
+		cleanedRelpath, err := pathsafe.SanitizeRelpath(item.Relpath)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid relpath"})
+			return
+		}
+		finalAbs, err := pathsafe.JoinAndVerify(portal.DestAbs, cleanedRelpath)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid relpath"})
+			return
+		}
+		totalBytes += item.Size
+		if _, err := os.Stat(finalAbs); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to preflight upload"})
+			return
+		}
+		conflicts = append(conflicts, PreflightConflict{Relpath: cleanedRelpath, Reason: "exists"})
+	}
+
+	writeJSON(w, http.StatusOK, PreflightResponse{
+		TotalFiles: len(req.Items),
+		TotalBytes: totalBytes,
+		Conflicts:  conflicts,
+	})
 }
 
 func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portalID string) {

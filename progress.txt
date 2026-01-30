@@ -10,6 +10,7 @@
 - Sweeper settings and temp dir names come from `internal/config` and are shared across services.
 - Portal lifecycle state is tracked in `control.Store` via `PortalState` and refreshed by `Store.SweepPortals`.
 - Public HTML UI is embedded in `internal/publicapi/server.go` for `/` and `/p/{portal_id}` pages.
+- Conflict preflight runs via `POST /api/portals/{portal_id}/preflight` using `pathsafe` validation.
 - Folder drop handling uses `webkitGetAsEntry` traversal in the portal UI script.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
@@ -99,4 +100,13 @@ Session: N/A
 - **Learnings for future iterations:**
   - Folder selection uses `webkitdirectory` input and dropped folders are traversed via `webkitGetAsEntry`.
   - Queue items store relpaths from `webkitRelativePath` or entry fullPath.
+---
+
+## Thu Jan 29 11:57:56 PM MST 2026 - US-007
+Session: N/A
+- Implemented conflict preflight checks plus UI warnings and autorename toggle support.
+- Files changed: `internal/publicapi/server.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Preflight responses include conflict relpaths with reason "exists" for UI warnings.
+  - Portal uploads honor the UI-selected overwrite vs autorename policy.
 ---
