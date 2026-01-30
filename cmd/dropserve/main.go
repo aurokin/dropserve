@@ -14,6 +14,7 @@ import (
 
 	"dropserve/internal/cli"
 	"dropserve/internal/control"
+	"dropserve/internal/publicapi"
 )
 
 const version = "dev"
@@ -50,13 +51,21 @@ func main() {
 }
 
 func runServe() error {
-	addr := controlAddrFromEnv()
+	controlAddr := controlAddrFromEnv()
+	publicAddr := publicAddrFromEnv()
 	store := control.NewStore()
-	logger := log.New(os.Stdout, "control ", log.LstdFlags)
+	controlLogger := log.New(os.Stdout, "control ", log.LstdFlags)
+	publicLogger := log.New(os.Stdout, "public ", log.LstdFlags)
 
-	server := &http.Server{
-		Addr:              addr,
-		Handler:           control.NewServer(store, logger).Handler(),
+	controlServer := &http.Server{
+		Addr:              controlAddr,
+		Handler:           control.NewServer(store, controlLogger).Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	publicServer := &http.Server{
+		Addr:              publicAddr,
+		Handler:           publicapi.NewServer(store, publicLogger).Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -67,12 +76,25 @@ func runServe() error {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
+		_ = controlServer.Shutdown(shutdownCtx)
+		_ = publicServer.Shutdown(shutdownCtx)
 	}()
 
-	logger.Printf("control api listening on %s", addr)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("control api failed: %w", err)
+	errCh := make(chan error, 2)
+	go func() {
+		controlLogger.Printf("control api listening on %s", controlAddr)
+		errCh <- controlServer.ListenAndServe()
+	}()
+	go func() {
+		publicLogger.Printf("public api listening on %s", publicAddr)
+		errCh <- publicServer.ListenAndServe()
+	}()
+
+	for i := 0; i < 2; i++ {
+		err := <-errCh
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("server failed: %w", err)
+		}
 	}
 
 	return nil
@@ -82,6 +104,14 @@ func controlAddrFromEnv() string {
 	addr := os.Getenv("DROPSERVE_CONTROL_ADDR")
 	if addr == "" {
 		return "127.0.0.1:9090"
+	}
+	return addr
+}
+
+func publicAddrFromEnv() string {
+	addr := os.Getenv("DROPSERVE_PUBLIC_ADDR")
+	if addr == "" {
+		return "127.0.0.1:8080"
 	}
 	return addr
 }

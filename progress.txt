@@ -3,6 +3,7 @@
 - `cmd/dropserve` hosts the main CLI/server entrypoint.
 - Control API payload types live in `internal/control/api.go` for shared CLI/server use.
 - Control service binds to `DROPSERVE_CONTROL_ADDR` (default loopback).
+- Public API handlers live in `internal/publicapi` and share portal state via `control.Store`.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -15,4 +16,13 @@ Session: N/A
   - Control API payloads are centralized in `internal/control/api.go` for reuse.
   - `dropserve serve` starts the control API on `DROPSERVE_CONTROL_ADDR`.
   - CLI prints URLs using `DROPSERVE_PUBLIC_ADDR` port when provided.
+---
+
+## Thu Jan 29 10:34:11 PM MST 2026 - US-002
+Session: N/A
+- Implemented the public claim endpoint with client token issuance and policy defaults.
+- Files changed: `cmd/dropserve/main.go`, `internal/control/store.go`, `internal/publicapi/server.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - `control.Store` tracks client tokens and exposes `RequireClientToken` for public API auth checks.
+  - `dropserve serve` now starts both control and public services from `cmd/dropserve/main.go`.
 ---
