@@ -11,6 +11,7 @@ Suggested environment variables (names may vary by implementation):
 - `DROPSERVE_SWEEP_INTERVAL_SECONDS` (default 120)
 - `DROPSERVE_PART_MAX_AGE_SECONDS` (default 600)
 - `DROPSERVE_PORTAL_IDLE_MAX_SECONDS` (default 1800)
+- `DROPSERVE_SWEEP_ROOTS` (default current working directory; colon-separated paths)
 - `DROPSERVE_MAX_UPLOAD_BYTES` (optional; default unlimited)
 - `DROPSERVE_LOG_LEVEL` (default `info`)
 

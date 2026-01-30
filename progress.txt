@@ -7,6 +7,7 @@
 - Path sanitization helpers live in `internal/pathsafe` for relpath validation.
 - Upload state is tracked in `control.Store` and mirrored as `.dropserve_tmp/<portal_id>/uploads/{upload_id}.json` metadata.
 - Track active upload counts with `Store.StartUpload`, `MarkUploadFailed`, and `MarkUploadCommitted`.
+- Sweeper settings and temp dir names come from `internal/config` and are shared across services.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -57,4 +58,14 @@ Session: N/A
   - `Store.StartUpload` increments portal active counts at stream start.
   - `MarkUploadFailed` and `MarkUploadCommitted` decrement active counts when uploads end.
   - Use `failUpload` on PUT errors to delete `.part` and `.json` artifacts.
+---
+
+## Thu Jan 29 11:11:28 PM MST 2026 - US-009
+Session: N/A
+- Implemented startup and periodic sweep logic for stale temp artifacts and portal directories.
+- Files changed: `cmd/dropserve/main.go`, `docs/11_Config_Reference.md`, `internal/config/config.go`, `internal/control/store.go`, `internal/publicapi/server.go`, `internal/sweeper/sweeper.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - The sweeper in `internal/sweeper` uses `control.Store` snapshots to skip active uploads.
+  - Startup sweep runs before servers accept requests in `cmd/dropserve/main.go`.
+  - Sweep roots default to the current working directory via `DROPSERVE_SWEEP_ROOTS`.
 ---

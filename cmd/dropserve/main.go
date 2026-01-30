@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"dropserve/internal/cli"
+	"dropserve/internal/config"
 	"dropserve/internal/control"
 	"dropserve/internal/publicapi"
+	"dropserve/internal/sweeper"
 )
 
 const version = "dev"
@@ -71,6 +73,19 @@ func runServe() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	sweepLogger := log.New(os.Stdout, "sweep ", log.LstdFlags)
+	sweeper := sweeper.New(sweeper.Config{
+		TempDirName:      config.TempDirName(),
+		SweepInterval:    config.SweepInterval(),
+		PartMaxAge:       config.PartMaxAge(),
+		PortalIdleMaxAge: config.PortalIdleMaxAge(),
+		Roots:            config.SweepRoots(),
+	}, store, sweepLogger)
+	if err := sweeper.RunOnce(ctx); err != nil {
+		sweepLogger.Printf("startup sweep failed: %v", err)
+	}
+	go sweeper.Run(ctx)
 
 	go func() {
 		<-ctx.Done()

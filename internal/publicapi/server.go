@@ -16,13 +16,15 @@ import (
 	"strings"
 	"time"
 
+	"dropserve/internal/config"
 	"dropserve/internal/control"
 	"dropserve/internal/pathsafe"
 )
 
 type Server struct {
-	store  *control.Store
-	logger *log.Logger
+	store       *control.Store
+	logger      *log.Logger
+	tempDirName string
 }
 
 type errorResponse struct {
@@ -73,7 +75,11 @@ type UploadStatusResponse struct {
 type requestIDKey struct{}
 
 func NewServer(store *control.Store, logger *log.Logger) *Server {
-	return &Server{store: store, logger: logger}
+	return &Server{
+		store:       store,
+		logger:      logger,
+		tempDirName: config.TempDirName(),
+	}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -225,7 +231,7 @@ func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portal
 		return
 	}
 
-	tempDir := uploadTempDir(portal.DestAbs, portal.ID)
+	tempDir := s.uploadTempDir(portal.DestAbs, portal.ID)
 	if err := os.MkdirAll(tempDir, 0o755); err != nil {
 		s.store.DeleteUpload(req.UploadID)
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to prepare upload"})
@@ -307,7 +313,7 @@ func (s *Server) handleUploadStream(w http.ResponseWriter, r *http.Request, uplo
 		return
 	}
 
-	tempDir := uploadTempDir(portal.DestAbs, portal.ID)
+	tempDir := s.uploadTempDir(portal.DestAbs, portal.ID)
 	partPath, metaPath := uploadTempPaths(tempDir, uploadID)
 
 	if _, err := s.store.StartUpload(uploadID); err != nil {
@@ -499,8 +505,8 @@ type uploadMetadata struct {
 	CreatedAt    string `json:"created_at"`
 }
 
-func uploadTempDir(destAbs, portalID string) string {
-	return filepath.Join(destAbs, ".dropserve_tmp", portalID, "uploads")
+func (s *Server) uploadTempDir(destAbs, portalID string) string {
+	return filepath.Join(destAbs, s.tempDirName, portalID, "uploads")
 }
 
 func uploadTempPaths(tempDir, uploadID string) (string, string) {

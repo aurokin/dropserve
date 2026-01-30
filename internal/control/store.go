@@ -187,6 +187,30 @@ func (s *Store) PortalByID(id string) (Portal, error) {
 	return portal, nil
 }
 
+func (s *Store) ListPortals() []Portal {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	portals := make([]Portal, 0, len(s.portals))
+	for _, portal := range s.portals {
+		portals = append(portals, portal)
+	}
+	return portals
+}
+
+func (s *Store) ActiveUploadIDs() map[string]struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	active := make(map[string]struct{})
+	for id, upload := range s.uploads {
+		if upload.Active {
+			active[id] = struct{}{}
+		}
+	}
+	return active
+}
+
 func (s *Store) CreateUpload(input CreateUploadInput) (Upload, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
