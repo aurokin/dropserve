@@ -1,5 +1,6 @@
 # Ralph Progress Log
 ## Codebase Patterns
+- LAN-only Caddy configs use `@denied not remote_ip private_ranges` and proxy `127.0.0.1:8080`.
 - `cmd/dropserve` hosts the main CLI/server entrypoint.
 - Control API payload types live in `internal/control/api.go` for shared CLI/server use.
 - Control service binds to `DROPSERVE_CONTROL_ADDR` (default loopback).
@@ -109,4 +110,13 @@ Session: N/A
 - **Learnings for future iterations:**
   - Preflight responses include conflict relpaths with reason "exists" for UI warnings.
   - Portal uploads honor the UI-selected overwrite vs autorename policy.
+---
+
+## Fri Jan 30 12:00:35 AM MST 2026 - US-011
+Session: N/A
+- Added a LAN-only Caddyfile template that proxies the public service.
+- Files changed: `Caddyfile`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - LAN-only access is enforced via the `remote_ip private_ranges` matcher in Caddy.
+  - Only the public service should be proxied to `127.0.0.1:8080`.
 ---
