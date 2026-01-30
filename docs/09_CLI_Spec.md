@@ -22,6 +22,13 @@ Flags:
 - `--policy overwrite|autorename` (default overwrite)
 - `--open-browser` (optional; tries to open the URL)
 
+### `dropserve serve`
+Starts the DropServe server services for local development.
+
+Behavior:
+- Starts the Control API on `DROPSERVE_CONTROL_ADDR` (default `127.0.0.1:9090`).
+- Public service startup will be added in later tasks.
+
 ### `dropserve version`
 Print version info.
 

@@ -1,0 +1,18 @@
+# Ralph Progress Log
+## Codebase Patterns
+- `cmd/dropserve` hosts the main CLI/server entrypoint.
+- Control API payload types live in `internal/control/api.go` for shared CLI/server use.
+- Control service binds to `DROPSERVE_CONTROL_ADDR` (default loopback).
+
+Started: Thu Jan 29 06:43:34 PM MST 2026
+---
+
+## Thu Jan 29 10:24:02 PM MST 2026 - US-001
+Session: N/A
+- Implemented the control API server and the `dropserve open` CLI flow with LAN IP detection.
+- Files changed: `go.mod`, `cmd/dropserve/main.go`, `internal/control/api.go`, `internal/control/server.go`, `internal/control/store.go`, `internal/cli/open.go`, `internal/cli/ip.go`, `docs/09_CLI_Spec.md`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - Control API payloads are centralized in `internal/control/api.go` for reuse.
+  - `dropserve serve` starts the control API on `DROPSERVE_CONTROL_ADDR`.
+  - CLI prints URLs using `DROPSERVE_PUBLIC_ADDR` port when provided.
+---
