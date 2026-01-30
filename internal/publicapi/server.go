@@ -243,6 +243,7 @@ func (s *Server) handleInitUpload(w http.ResponseWriter, r *http.Request, portal
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
 	}
 	if err := writeUploadMetadata(metaPath, meta); err != nil {
+		cleanupUploadArtifacts("", metaPath)
 		s.store.DeleteUpload(req.UploadID)
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to prepare upload"})
 		return
@@ -306,22 +307,36 @@ func (s *Server) handleUploadStream(w http.ResponseWriter, r *http.Request, uplo
 		return
 	}
 
+	tempDir := uploadTempDir(portal.DestAbs, portal.ID)
+	partPath, metaPath := uploadTempPaths(tempDir, uploadID)
+
+	if _, err := s.store.StartUpload(uploadID); err != nil {
+		switch {
+		case errors.Is(err, control.ErrPortalNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrUploadNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "upload not found"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to start upload"})
+		}
+		return
+	}
+
 	if r.ContentLength < 0 || r.ContentLength != upload.Size {
-		_, metaPath := uploadTempPaths(uploadTempDir(portal.DestAbs, portal.ID), uploadID)
-		s.failUpload(uploadID, "", metaPath)
+		s.failUpload(uploadID, partPath, metaPath)
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "size mismatch"})
 		return
 	}
 
-	tempDir := uploadTempDir(portal.DestAbs, portal.ID)
 	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		s.failUpload(uploadID, partPath, metaPath)
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to prepare upload"})
 		return
 	}
 
-	partPath, metaPath := uploadTempPaths(tempDir, uploadID)
 	file, err := os.OpenFile(partPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
+		s.failUpload(uploadID, partPath, metaPath)
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to write upload"})
 		return
 	}

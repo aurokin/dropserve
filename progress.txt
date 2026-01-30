@@ -6,6 +6,7 @@
 - Public API handlers live in `internal/publicapi` and share portal state via `control.Store`.
 - Path sanitization helpers live in `internal/pathsafe` for relpath validation.
 - Upload state is tracked in `control.Store` and mirrored as `.dropserve_tmp/<portal_id>/uploads/{upload_id}.json` metadata.
+- Track active upload counts with `Store.StartUpload`, `MarkUploadFailed`, and `MarkUploadCommitted`.
 
 Started: Thu Jan 29 06:43:34 PM MST 2026
 ---
@@ -46,4 +47,14 @@ Session: N/A
 - **Learnings for future iterations:**
   - Upload metadata is written to `.dropserve_tmp/<portal_id>/uploads` during init and used for cleanup workflows.
   - `PUT /api/uploads/{upload_id}` validates `Content-Length` and optional client SHA-256 before rename.
+---
+
+## Thu Jan 29 11:15:00 PM MST 2026 - US-008
+Session: N/A
+- Implemented active upload tracking and failure cleanup during PUT streams.
+- Files changed: `internal/control/store.go`, `internal/publicapi/server.go`, `prd.json`, `progress.txt`.
+- **Learnings for future iterations:**
+  - `Store.StartUpload` increments portal active counts at stream start.
+  - `MarkUploadFailed` and `MarkUploadCommitted` decrement active counts when uploads end.
+  - Use `failUpload` on PUT errors to delete `.part` and `.json` artifacts.
 ---

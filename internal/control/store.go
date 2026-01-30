@@ -31,6 +31,7 @@ type Portal struct {
 	DefaultPolicy        string
 	AutorenameOnConflict bool
 	ClientTokens         map[string]struct{}
+	ActiveUploads        int
 }
 
 type UploadStatus string
@@ -52,6 +53,7 @@ type Upload struct {
 	ServerSHA256  string
 	BytesReceived int64
 	FinalRelpath  string
+	Active        bool
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 }
@@ -230,9 +232,45 @@ func (s *Store) GetUpload(id string) (Upload, error) {
 	return upload, nil
 }
 
+func (s *Store) StartUpload(id string) (Upload, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	upload, ok := s.uploads[id]
+	if !ok {
+		return Upload{}, ErrUploadNotFound
+	}
+
+	if upload.Active {
+		return upload, nil
+	}
+
+	portal, ok := s.portals[upload.PortalID]
+	if !ok {
+		return Upload{}, ErrPortalNotFound
+	}
+
+	portal.ActiveUploads++
+	upload.Active = true
+	upload.UpdatedAt = time.Now()
+	s.portals[portal.ID] = portal
+	s.uploads[id] = upload
+
+	return upload, nil
+}
+
 func (s *Store) DeleteUpload(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	upload, ok := s.uploads[id]
+	if ok && upload.Active {
+		portal, ok := s.portals[upload.PortalID]
+		if ok && portal.ActiveUploads > 0 {
+			portal.ActiveUploads--
+			s.portals[portal.ID] = portal
+		}
+	}
 
 	delete(s.uploads, id)
 }
@@ -244,6 +282,15 @@ func (s *Store) MarkUploadCommitted(id, serverSHA256, finalRelpath string, bytes
 	upload, ok := s.uploads[id]
 	if !ok {
 		return Upload{}, ErrUploadNotFound
+	}
+
+	if upload.Active {
+		portal, ok := s.portals[upload.PortalID]
+		if ok && portal.ActiveUploads > 0 {
+			portal.ActiveUploads--
+			s.portals[portal.ID] = portal
+		}
+		upload.Active = false
 	}
 
 	upload.Status = UploadCommitted
@@ -263,6 +310,15 @@ func (s *Store) MarkUploadFailed(id string) (Upload, error) {
 	upload, ok := s.uploads[id]
 	if !ok {
 		return Upload{}, ErrUploadNotFound
+	}
+
+	if upload.Active {
+		portal, ok := s.portals[upload.PortalID]
+		if ok && portal.ActiveUploads > 0 {
+			portal.ActiveUploads--
+			s.portals[portal.ID] = portal
+		}
+		upload.Active = false
 	}
 
 	upload.Status = UploadFailed
