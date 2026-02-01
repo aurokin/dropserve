@@ -21,3 +21,7 @@ Suggested environment variables (names may vary by implementation):
 - Optional public base URL override:
   - `http://{primary_ipv4}` (HTTP mode)
   - `https://dropserve.lan` (TLS mode)
+
+## Caddy configuration
+
+- `DROPSERVE_LAN_HOST` (default `dropserve.lan`): hostname or LAN IP used in the HTTPS Caddyfile.

@@ -1,7 +1,6 @@
-{$DROPSERVE_LAN_HOST:dropserve.lan} {
+http://:80 {
     @denied not remote_ip private_ranges
     respond @denied "LAN only" 403
 
-    tls internal
     reverse_proxy 127.0.0.1:8080
 }

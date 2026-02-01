@@ -19,6 +19,7 @@ This documentation pack is the **source of truth** for building DropServe.
 12. `12_Test_Plan.md`
 13. `13_Troubleshooting.md`
 14. `14_Licensing.md`
+15. `15_Development_Setup.md`
 
 ## Source-of-truth rules
 

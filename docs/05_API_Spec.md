@@ -46,7 +46,8 @@ Response 200:
   "policy": {
     "overwrite": true,
     "autorename": true
-  }
+  },
+  "reusable": false
 }
 ```
 

@@ -1,6 +1,7 @@
 package publicapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -19,12 +21,15 @@ import (
 	"dropserve/internal/config"
 	"dropserve/internal/control"
 	"dropserve/internal/pathsafe"
+	"dropserve/internal/webassets"
 )
 
 type Server struct {
 	store       *control.Store
 	logger      *log.Logger
 	tempDirName string
+	assets      fs.FS
+	indexHTML   []byte
 }
 
 type errorResponse struct {
@@ -36,6 +41,7 @@ type ClaimPortalResponse struct {
 	ClientToken string      `json:"client_token"`
 	ExpiresAt   string      `json:"expires_at"`
 	Policy      ClaimPolicy `json:"policy"`
+	Reusable    bool        `json:"reusable"`
 }
 
 type ClosePortalResponse struct {
@@ -907,15 +913,32 @@ const portalPageHTML = `<!DOCTYPE html>
 </html>`
 
 func NewServer(store *control.Store, logger *log.Logger) *Server {
+	if logger == nil {
+		logger = log.New(os.Stdout, "public ", log.LstdFlags)
+	}
+
+	assets, err := webassets.Dist()
+	if err != nil {
+		logger.Printf("failed to load web assets: %v", err)
+	}
+	indexHTML, err := webassets.ReadIndex()
+	if err != nil {
+		logger.Printf("failed to load index.html: %v", err)
+	}
+
 	return &Server{
 		store:       store,
 		logger:      logger,
 		tempDirName: config.TempDirName(),
+		assets:      assets,
+		indexHTML:   indexHTML,
 	}
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.Handle("/assets/", s.assetsHandler())
+	mux.Handle("/favicon.svg", s.assetsHandler())
 	mux.HandleFunc("/api/portals/", s.handlePortals)
 	mux.HandleFunc("/api/uploads/", s.handleUploads)
 	mux.HandleFunc("/p/", s.handlePortalPage)
@@ -932,7 +955,7 @@ func (s *Server) handleLanding(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
 		return
 	}
-	writeHTML(w, http.StatusOK, landingPageHTML)
+	s.serveIndex(w, r)
 }
 
 func (s *Server) handlePortalPage(w http.ResponseWriter, r *http.Request) {
@@ -959,7 +982,7 @@ func (s *Server) handlePortalPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeHTML(w, http.StatusOK, portalPageHTML)
+	s.serveIndex(w, r)
 }
 
 func (s *Server) handlePortals(w http.ResponseWriter, r *http.Request) {
@@ -1026,6 +1049,7 @@ func (s *Server) handleClaim(w http.ResponseWriter, r *http.Request, portalID st
 			Overwrite:  result.Portal.DefaultPolicy == "overwrite",
 			Autorename: result.Portal.DefaultPolicy == "autorename",
 		},
+		Reusable: result.Portal.Reusable,
 	}
 
 	writeJSON(w, http.StatusOK, resp)
@@ -1459,6 +1483,30 @@ func (s *Server) handleUploadStatus(w http.ResponseWriter, r *http.Request, uplo
 		FinalRelpath:  finalRelpath,
 		BytesReceived: upload.BytesReceived,
 	})
+}
+
+func (s *Server) assetsHandler() http.Handler {
+	if s.assets == nil {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.NotFound(w, r)
+		})
+	}
+	fileServer := http.FileServer(http.FS(s.assets))
+	return http.StripPrefix("/", fileServer)
+}
+
+func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
+	if len(s.indexHTML) == 0 && s.assets != nil {
+		indexHTML, err := fs.ReadFile(s.assets, "index.html")
+		if err == nil {
+			s.indexHTML = indexHTML
+		}
+	}
+	if len(s.indexHTML) == 0 {
+		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "web ui not available"})
+		return
+	}
+	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(s.indexHTML))
 }
 
 func (s *Server) failUpload(uploadID, partPath, metaPath string) {
