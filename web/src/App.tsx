@@ -30,7 +30,19 @@ type ClaimResponse = {
   client_token: string;
   expires_at: string;
   policy: ClaimPolicy;
-  reusable?: boolean;
+  reusable: boolean;
+};
+
+type PortalInfoResponse = {
+  portal_id: string;
+  expires_at: string;
+  policy: ClaimPolicy;
+  reusable: boolean;
+};
+
+type PortalRoute = {
+  portalId: string;
+  subpage: "" | "claimed";
 };
 
 type PreflightConflict = {
@@ -74,13 +86,22 @@ const defaultStatus: StatusState = {
 };
 
 function App() {
-  const portalId = useMemo(() => getPortalId(window.location.pathname), []);
-  const isPortalPage = portalId.length > 0;
+  const portalRoute = useMemo(() => getPortalRoute(window.location.pathname), []);
+  const portalId = portalRoute?.portalId ?? "";
+  const subpage = portalRoute?.subpage ?? "";
+  const isPortalPage = portalId.length > 0 && subpage === "";
+  const isClaimedPage = portalId.length > 0 && subpage === "claimed";
 
   return (
     <div className="page">
       <main className="content">
-        {isPortalPage ? <PortalPage portalId={portalId} /> : <LandingPage />}
+        {isClaimedPage ? (
+          <ClaimedPage portalId={portalId} />
+        ) : isPortalPage ? (
+          <PortalPage portalId={portalId} />
+        ) : (
+          <LandingPage />
+        )}
       </main>
     </div>
   );
@@ -134,6 +155,52 @@ function LandingPage() {
   );
 }
 
+function ClaimedPage({ portalId }: { portalId: string }) {
+  return (
+    <section className="card claimed-card">
+      <div className="claimed-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+          <path
+            d="M7 11V8.5C7 6 9 4 12 4s5 2 5 4.5V11"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <rect
+            x="5"
+            y="11"
+            width="14"
+            height="9"
+            rx="2"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+        </svg>
+      </div>
+      <div className="claimed-content">
+        <div className="claimed-meta">Portal {portalId}</div>
+        <h1>This portal is already claimed.</h1>
+        <p className="lead">
+          DropServe locks non-reusable portals to the first device that claims them.
+        </p>
+        <div className="claimed-steps">
+          <div className="claimed-step">
+            Ask the host to reopen the portal or share a new link.
+          </div>
+          <div className="claimed-step">
+            For shared uploads, open a reusable portal with <code>dropserve open --reusable</code>.
+          </div>
+        </div>
+        <div className="claimed-actions">
+          <a className="claimed-button" href="/">Back to home</a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PortalPage({ portalId }: { portalId: string }) {
   const [status, setStatus] = useState<StatusState>(defaultStatus);
   const [claimed, setClaimed] = useState(false);
@@ -147,10 +214,10 @@ function PortalPage({ portalId }: { portalId: string }) {
   const [uploadedBytes, setUploadedBytes] = useState(0);
   const [speedBps, setSpeedBps] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [portalReusable, setPortalReusable] = useState(true);
+  const [portalReusable, setPortalReusable] = useState(false);
 
   const clientTokenRef = useRef("");
-  const claimAttemptedRef = useRef(false);
+  const infoAttemptedRef = useRef(false);
   const queueRef = useRef<QueueItem[]>([]);
   const uploadedBytesRef = useRef(0);
   const completedBytesRef = useRef(0);
@@ -297,6 +364,10 @@ function PortalPage({ portalId }: { portalId: string }) {
         body: "{}"
       });
       if (!response.ok) {
+        if (response.status === 409) {
+          redirectToClaimedPortal(portalId);
+          return;
+        }
         const message = await readError(response);
         updateStatus(message, "error");
         return;
@@ -306,7 +377,7 @@ function PortalPage({ portalId }: { portalId: string }) {
       setExpiresAt(data.expires_at || null);
       const policy = data.policy && data.policy.autorename ? "autorename" : "overwrite";
       setDefaultPolicy(policy);
-      setPortalReusable(data.reusable !== false);
+      setPortalReusable(Boolean(data.reusable));
       setClaimed(true);
       updateStatus("Portal ready. Drop or click to add files.", "ok");
       runPreflight(queueRef.current, false);
@@ -314,6 +385,37 @@ function PortalPage({ portalId }: { portalId: string }) {
       updateStatus("Failed to claim portal.", "error");
     }
   }, [portalId, runPreflight, updateStatus]);
+
+  const loadPortalInfo = useCallback(async () => {
+    if (!portalId) {
+      updateStatus("Invalid portal URL.", "error");
+      return;
+    }
+    updateStatus("Loading portal...", "info");
+    try {
+      const response = await fetch(`/api/portals/${portalId}/info`);
+      if (!response.ok) {
+        const message = await readError(response);
+        updateStatus(message, "error");
+        return;
+      }
+      const data: PortalInfoResponse = await response.json();
+      setExpiresAt(data.expires_at || null);
+      const policy = data.policy && data.policy.autorename ? "autorename" : "overwrite";
+      setDefaultPolicy(policy);
+      const reusable = Boolean(data.reusable);
+      setPortalReusable(reusable);
+      if (reusable) {
+        setClaimed(true);
+        updateStatus("Reuseable portal ready.", "ok");
+        runPreflight(queueRef.current, false);
+        return;
+      }
+      await claimPortal();
+    } catch {
+      updateStatus("Failed to load portal.", "error");
+    }
+  }, [claimPortal, portalId, runPreflight, updateStatus]);
 
   const initUpload = useCallback(
     async (item: QueueItem) => {
@@ -377,27 +479,6 @@ function PortalPage({ portalId }: { portalId: string }) {
     [updateQueueItem, updateUploadedBytes]
   );
 
-  const closePortal = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/portals/${portalId}/close`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Client-Token": clientTokenRef.current
-        },
-        body: "{}"
-      });
-      if (!response.ok) {
-        const message = await readError(response);
-        updateStatus(`Uploads complete. Portal close failed: ${message}`, "warn");
-        return;
-      }
-      updateStatus("All uploads complete. Portal closed.", "ok");
-    } catch {
-      updateStatus("Uploads complete. Portal close failed.", "warn");
-    }
-  }, [portalId, updateStatus]);
-
   const runQueue = useCallback(async () => {
     if (running || !claimed || queueRef.current.length === 0) {
       return;
@@ -455,16 +536,10 @@ function PortalPage({ portalId }: { portalId: string }) {
 
     setRunning(false);
     stopSpeedTimer();
-    if (!portalReusable) {
-      await closePortal();
-    } else {
-      updateStatus("All uploads complete. Portal remains open.", "ok");
-    }
+    updateStatus("All uploads complete. Portal remains open until it expires.", "ok");
   }, [
     claimed,
-    closePortal,
     initUpload,
-    portalReusable,
     putUpload,
     runPreflight,
     running,
@@ -476,12 +551,12 @@ function PortalPage({ portalId }: { portalId: string }) {
   ]);
 
   useEffect(() => {
-    if (!portalId || claimed || claimAttemptedRef.current) {
+    if (!portalId || infoAttemptedRef.current) {
       return;
     }
-    claimAttemptedRef.current = true;
-    claimPortal();
-  }, [claimed, claimPortal, portalId]);
+    infoAttemptedRef.current = true;
+    loadPortalInfo();
+  }, [loadPortalInfo, portalId]);
 
   useEffect(() => () => stopSpeedTimer(), [stopSpeedTimer]);
 
@@ -561,6 +636,8 @@ function PortalPage({ portalId }: { portalId: string }) {
           <div className="splash-top">
             <div className="meta">
               Portal {portalId}
+              {portalReusable && <span className="meta-divider">•</span>}
+              {portalReusable && <span className="portal-badge">Reusable</span>}
               {expiryLabel && <span className="meta-divider">•</span>}
               {expiryLabel && `Expires ${expiryLabel}`}
             </div>
@@ -696,9 +773,28 @@ function PortalPage({ portalId }: { portalId: string }) {
   );
 }
 
-function getPortalId(pathname: string) {
-  const match = pathname.match(/^\/p\/([^/]+)/);
-  return match ? match[1] : "";
+function getPortalRoute(pathname: string): PortalRoute | null {
+  const match = pathname.match(/^\/p\/([^/]+)(?:\/([^/]+))?\/?$/);
+  if (!match) {
+    return null;
+  }
+  const portalId = match[1];
+  const subpage = match[2] || "";
+  if (subpage && subpage !== "claimed") {
+    return null;
+  }
+  return {
+    portalId,
+    subpage: subpage === "claimed" ? "claimed" : ""
+  };
+}
+
+function redirectToClaimedPortal(portalId: string) {
+  if (!portalId) {
+    return;
+  }
+  const target = `/p/${encodeURIComponent(portalId)}/claimed`;
+  window.location.assign(target);
 }
 
 function makeLocalID() {

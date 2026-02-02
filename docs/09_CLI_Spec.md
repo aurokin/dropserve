@@ -5,6 +5,9 @@ The CLI runs on the destination server.
 
 ## Commands
 
+### `dropserve`
+Defaults to `open` for the current working directory.
+
 ### `dropserve open`
 Opens a portal for the current working directory.
 
@@ -17,10 +20,10 @@ Behavior:
   - HTTPS (if enabled via Caddy and configured): `https://{host}/p/{portal_id}`
 
 Flags:
-- `--minutes <N>` (default 15)
-- `--reusable` (default false)
+- `--minutes <N>` (default 15; alias: `-m`)
+- `--reusable` (default false; aliases: `--reuseable`, `-r`)
 - `--policy overwrite|autorename` (default overwrite)
-- `--open-browser` (optional; tries to open the URL)
+- `--host <HOST>` (optional; override LAN host/IP in the printed link)
 
 ### `dropserve serve`
 Starts the DropServe server services for local development.
@@ -33,7 +36,7 @@ Behavior:
 Print version info.
 
 ### `dropserve help`
-Show help.
+Show help (aliases: `-h`, `--help`, `-help`).
 
 ## Primary LAN IPv4 detection
 

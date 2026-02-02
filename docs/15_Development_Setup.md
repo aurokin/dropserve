@@ -56,7 +56,7 @@ By default this starts:
 2) In a second terminal, open a portal from any directory you want to upload into.
 
 ```bash
-go run ./cmd/dropserve open --minutes 15
+go run ./cmd/dropserve --minutes 15
 ```
 
 The CLI prints a URL. Open it in a browser and upload files.

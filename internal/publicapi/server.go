@@ -44,6 +44,13 @@ type ClaimPortalResponse struct {
 	Reusable    bool        `json:"reusable"`
 }
 
+type PortalInfoResponse struct {
+	PortalID  string      `json:"portal_id"`
+	ExpiresAt string      `json:"expires_at"`
+	Policy    ClaimPolicy `json:"policy"`
+	Reusable  bool        `json:"reusable"`
+}
+
 type ClosePortalResponse struct {
 	Status string `json:"status"`
 }
@@ -912,6 +919,68 @@ const portalPageHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
+const notFoundHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DropServe | 404</title>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: #f5f7fb;
+      color: #1a1d21;
+    }
+    main {
+      max-width: 680px;
+      margin: 72px auto;
+      padding: 0 20px;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #667085;
+      margin: 0 0 6px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 30px;
+    }
+    p {
+      margin: 0 0 12px;
+      color: #475467;
+      line-height: 1.5;
+    }
+    a {
+      color: #1f8fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <div class="eyebrow">404</div>
+      <h1>Portal not found</h1>
+      <p>The link may have expired or never existed.</p>
+      <p><a href="/">Back to DropServe</a></p>
+    </div>
+  </main>
+</body>
+</html>`
+
 func NewServer(store *control.Store, logger *log.Logger) *Server {
 	if logger == nil {
 		logger = log.New(os.Stdout, "public ", log.LstdFlags)
@@ -948,7 +1017,7 @@ func (s *Server) Handler() http.Handler {
 
 func (s *Server) handleLanding(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+		s.serveNotFound(w, r)
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -971,14 +1040,18 @@ func (s *Server) handlePortalPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	segments := strings.Split(strings.Trim(pathValue, "/"), "/")
-	if len(segments) != 1 || strings.TrimSpace(segments[0]) == "" {
-		http.NotFound(w, r)
+	if len(segments) < 1 || len(segments) > 2 || strings.TrimSpace(segments[0]) == "" {
+		s.serveNotFound(w, r)
+		return
+	}
+	if len(segments) == 2 && strings.TrimSpace(segments[1]) != "claimed" {
+		s.serveNotFound(w, r)
 		return
 	}
 
 	portalID := segments[0]
 	if _, err := s.store.PortalByID(portalID); err != nil {
-		http.NotFound(w, r)
+		s.serveNotFound(w, r)
 		return
 	}
 
@@ -1002,6 +1075,8 @@ func (s *Server) handlePortals(w http.ResponseWriter, r *http.Request) {
 	action := segments[1]
 
 	switch action {
+	case "info":
+		s.handleInfo(w, r, portalID)
 	case "claim":
 		s.handleClaim(w, r, portalID)
 	case "uploads":
@@ -1013,6 +1088,43 @@ func (s *Server) handlePortals(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeJSON(w, http.StatusNotFound, errorResponse{Error: "not found"})
 	}
+}
+
+func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request, portalID string) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method not allowed"})
+		return
+	}
+
+	portal, err := s.store.PortalByID(portalID)
+	if err != nil {
+		switch {
+		case errors.Is(err, control.ErrPortalNotFound):
+			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
+		case errors.Is(err, control.ErrPortalClosed):
+			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		default:
+			writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "failed to load portal"})
+		}
+		return
+	}
+
+	if portal.State == control.PortalClosing {
+		writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
+		return
+	}
+
+	resp := PortalInfoResponse{
+		PortalID:  portal.ID,
+		ExpiresAt: portal.OpenUntil.Format(time.RFC3339),
+		Policy: ClaimPolicy{
+			Overwrite:  portal.DefaultPolicy == "overwrite",
+			Autorename: portal.DefaultPolicy == "autorename",
+		},
+		Reusable: portal.Reusable,
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *Server) handleClaim(w http.ResponseWriter, r *http.Request, portalID string) {
@@ -1032,7 +1144,7 @@ func (s *Server) handleClaim(w http.ResponseWriter, r *http.Request, portalID st
 		case errors.Is(err, control.ErrPortalNotFound):
 			writeJSON(w, http.StatusNotFound, errorResponse{Error: "portal not found"})
 		case errors.Is(err, control.ErrPortalAlreadyClaimed):
-			writeJSON(w, http.StatusConflict, errorResponse{Error: "portal already claimed"})
+			writeJSON(w, http.StatusConflict, errorResponse{Error: "Portal already claimed"})
 		case errors.Is(err, control.ErrPortalClosed):
 			writeJSON(w, http.StatusGone, errorResponse{Error: "portal closed"})
 		default:
@@ -1507,6 +1619,12 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.ServeContent(w, r, "index.html", time.Time{}, bytes.NewReader(s.indexHTML))
+}
+
+func (s *Server) serveNotFound(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusNotFound)
+	_, _ = io.WriteString(w, notFoundHTML)
 }
 
 func (s *Server) failUpload(uploadID, partPath, metaPath string) {

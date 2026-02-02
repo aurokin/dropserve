@@ -27,6 +27,22 @@ A self-hosted LAN-only web app + CLI pair:
 - Humans: read `docs/00_Index.md`
 - AI agents: read `agents/00_Read_First.md` then pick tasks in `agents/tasks/`
 
+## Build and install (local)
+
+Build the web assets and Go binary:
+
+```bash
+./scripts/build.sh
+```
+
+Install the binary to `~/.local/bin/dropserve`:
+
+```bash
+./scripts/install.sh
+```
+
+If `~/.local/bin` is not on your PATH, add it in your shell profile.
+
 ## Date & timezone reference
 
 - Pack created: 2026-01-29

@@ -7,8 +7,8 @@ This document defines portal behavior and is the source of truth for lifecycle l
 
 - **Portal**: A time-bound capability that authorizes uploads to a single destination directory on the server.
 - **Open window**: Period during which the portal can be claimed/used. Default: 15 minutes.
-- **One-time portal**: Default. First successful use triggers auto-close after uploads complete.
-- **Reusable portal**: Optional. Can be used multiple times until duration ends or explicitly closed.
+- **One-time portal**: Default. Can be claimed once; uploads are allowed until the open window expires.
+- **Reusable portal**: Optional. Can be used multiple times until the duration ends or explicitly closed; does not require claiming.
 - **Active upload**: A file upload currently streaming bytes to the server.
 
 ## Required properties
@@ -48,10 +48,7 @@ Transitions:
   - when now > open_until (duration expired), mark `closing_requested = true`
 
 - IN_USE -> CLOSED
-  - for one-time portals:
-    - after uploads complete AND queue has finished
-  - for reusable portals:
-    - only when explicitly closed OR duration expired AND uploads drained
+  - only when explicitly closed OR duration expired AND uploads drained
 
 - CLOSING -> CLOSED
   - when active_uploads == 0
@@ -62,8 +59,8 @@ Transitions:
   - when now > open_until, portal becomes EXPIRED and is cleaned.
 
 - If portal is used:
-  - reaching open_until triggers closing_requested but does not interrupt uploads.
-  - portal closes only after active_uploads drains to 0 (and queue is done for one-time portals).
+- reaching open_until triggers closing_requested but does not interrupt uploads.
+- portal closes only after active_uploads drains to 0.
 
 ## Claim rules
 
@@ -75,11 +72,10 @@ One-time portals:
 
 Reusable portals:
 
-- Claim may be optional; if implemented, claim does not exclude other clients by default.
+- Claim is not required; reusable portals ignore the claim/token system.
 - Reusable portals should still use capability-token strength and LAN restriction.
 
 ## Close rules
 
-- Server MUST close and clean a one-time portal after successful queue completion.
 - Browser MAY call an explicit close endpoint.
 - Server MAY auto-close a reusable portal after an idle timeout (optional).

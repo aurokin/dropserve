@@ -14,7 +14,7 @@ const defaultOpenMinutes = 15
 
 var (
 	ErrPortalNotFound         = errors.New("portal not found")
-	ErrPortalAlreadyClaimed   = errors.New("portal already claimed")
+	ErrPortalAlreadyClaimed   = errors.New("Portal already claimed")
 	ErrPortalClosed           = errors.New("portal closed")
 	ErrClientTokenRequired    = errors.New("client token required")
 	ErrClientTokenInvalid     = errors.New("client token invalid")
@@ -195,6 +195,10 @@ func (s *Store) RequireClientToken(id, token string) error {
 	}
 	if portal.State == PortalClosed || portal.State == PortalExpired {
 		return ErrPortalClosed
+	}
+
+	if portal.Reusable {
+		return nil
 	}
 
 	if !portal.Reusable && len(portal.ClientTokens) == 0 {

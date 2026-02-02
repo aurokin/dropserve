@@ -23,8 +23,14 @@ const version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {
-		usage()
-		os.Exit(1)
+		if err := cli.RunOpen(nil, os.Stdout, os.Stderr); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return
+			}
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	switch os.Args[1] {
@@ -43,7 +49,7 @@ func main() {
 		}
 	case "version":
 		fmt.Fprintln(os.Stdout, version)
-	case "help", "-h", "--help":
+	case "help", "-h", "--help", "-help":
 		usage()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
@@ -134,6 +140,7 @@ func publicAddrFromEnv() string {
 func usage() {
 	fmt.Fprintln(os.Stderr, "DropServe CLI")
 	fmt.Fprintln(os.Stderr, "\nUsage:")
+	fmt.Fprintln(os.Stderr, "  dropserve (defaults to: open)")
 	fmt.Fprintln(os.Stderr, "  dropserve open [--minutes N] [--reusable] [--policy overwrite|autorename] [--host HOST]")
 	fmt.Fprintln(os.Stderr, "  dropserve serve")
 	fmt.Fprintln(os.Stderr, "  dropserve version")

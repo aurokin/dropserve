@@ -177,6 +177,92 @@ code {
   border: 1px solid var(--border);
 }
 
+.claimed-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.claimed-card h1 {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3vw, 34px);
+  margin: 0 0 10px;
+}
+
+.claimed-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #fff4e8;
+  color: var(--warn);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(222, 122, 44, 0.35);
+}
+
+.claimed-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.claimed-meta {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.claimed-steps {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.claimed-step {
+  font-size: 14px;
+  color: #8a4d1f;
+  background: #fff7ee;
+  border: 1px solid rgba(222, 122, 44, 0.25);
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.claimed-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.claimed-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  border: 1px solid var(--accent-strong);
+  box-shadow: 0 6px 0 rgba(31, 143, 255, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.claimed-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 0 rgba(31, 143, 255, 0.18);
+}
+
+.claimed-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 3px 0 rgba(31, 143, 255, 0.12);
+}
+
 .portal-layout {
   display: grid;
   gap: 20px;
@@ -201,6 +287,19 @@ code {
 .meta-divider {
   margin: 0 8px;
   opacity: 0.6;
+}
+
+.portal-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .status {
@@ -614,5 +713,17 @@ code {
 
   .queue-status {
     text-align: left;
+  }
+
+  .claimed-card {
+    grid-template-columns: 1fr;
+  }
+
+  .claimed-actions {
+    width: 100%;
+  }
+
+  .claimed-button {
+    width: 100%;
   }
 }

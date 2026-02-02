@@ -4,12 +4,14 @@
 ## Pages
 
 ### Landing (`/`)
-- Explains: “Run `dropserve open` on the server in the destination directory.”
+- Explains: “Run `dropserve` on the server in the destination directory.”
 - May show example commands.
 
 ### Portal upload page (`/p/{portal_id}`)
-- Claims portal
+- Loads portal info
+- Claims portal only for one-time portals
 - Shows:
+  - reusable badge when applicable
   - portal status (active / expired / closing)
   - queue list
   - overall progress
@@ -66,6 +68,5 @@ Per file:
 
 ## Close behavior
 
-- For one-time portals:
-  - after queue finishes, UI calls `/api/portals/{portal_id}/close` (optional; server may auto-close)
-- UI should show a “Portal closed” message after completion.
+- UI does not auto-close portals after the queue finishes.
+- UI should show a completion message indicating the portal stays open until expiry.

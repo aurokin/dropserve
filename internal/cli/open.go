@@ -27,8 +27,13 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("open", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 
-	minutes := fs.Int("minutes", defaultOpenMinutes, "Minutes to keep portal open")
-	reusable := fs.Bool("reusable", false, "Allow multiple claims and uploads")
+	var reusable bool
+	var minutes int
+	fs.IntVar(&minutes, "minutes", defaultOpenMinutes, "Minutes to keep portal open")
+	fs.IntVar(&minutes, "m", defaultOpenMinutes, "Alias for --minutes")
+	fs.BoolVar(&reusable, "reusable", false, "Allow multiple claims")
+	fs.BoolVar(&reusable, "reuseable", false, "Alias for --reusable")
+	fs.BoolVar(&reusable, "r", false, "Alias for --reusable")
 	policy := fs.String("policy", "overwrite", "Default conflict policy: overwrite or autorename")
 	hostOverride := fs.String("host", "", "Override LAN host/IP for printed link")
 
@@ -50,8 +55,8 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 
 	request := control.CreatePortalRequest{
 		DestAbs:              destAbs,
-		OpenMinutes:          *minutes,
-		Reusable:             *reusable,
+		OpenMinutes:          minutes,
+		Reusable:             reusable,
 		DefaultPolicy:        policyValue,
 		AutorenameOnConflict: policyValue == "autorename",
 	}

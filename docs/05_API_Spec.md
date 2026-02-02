@@ -13,7 +13,7 @@ This document defines the API surface. The implementation must follow this spec.
 
 ## Common headers
 
-- `X-Client-Token`: required for state-changing public endpoints once a one-time portal is claimed.
+- `X-Client-Token`: required for state-changing public endpoints once a one-time portal is claimed (reusable portals ignore client tokens).
 - `X-Request-Id`: optional; if present, server logs it.
 
 ## Public Service Endpoints
@@ -29,8 +29,31 @@ Portal upload page.
 - 200 text/html
 - 404 if portal not found or invalid
 
+### GET /api/portals/{portal_id}/info
+Returns portal metadata without claiming.
+
+Response 200:
+```json
+{
+  "portal_id": "p_...",
+  "expires_at": "RFC3339 timestamp",
+  "policy": {
+    "overwrite": true,
+    "autorename": true
+  },
+  "reusable": false
+}
+```
+
+Errors:
+- 404 portal not found
+- 410 portal closed/expired
+
 ### POST /api/portals/{portal_id}/claim
 Claims a portal for a browser client.
+
+Notes:
+- Reusable portals do not require claiming; clients should skip this call.
 
 Request:
 ```json
@@ -142,7 +165,7 @@ Response 200:
 ```
 
 ### POST /api/portals/{portal_id}/close
-Closes a portal explicitly. For one-time portals, this is optional; the server may auto-close.
+Closes a portal explicitly. Portals otherwise close when the open window expires.
 
 Response 200:
 ```json
