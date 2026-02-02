@@ -70,6 +70,10 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 	port := publicPortFromEnv()
 	link := formatPortalURL(host, port, response.PortalID)
 	fmt.Fprintln(stdout, link)
+	if host != "localhost" {
+		localLink := formatPortalURL("localhost", port, response.PortalID)
+		fmt.Fprintln(stdout, localLink)
+	}
 	return nil
 }
 
