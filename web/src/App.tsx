@@ -159,6 +159,7 @@ function PortalPage({ portalId }: { portalId: string }) {
   const [portalReusable, setPortalReusable] = useState(true);
 
   const clientTokenRef = useRef("");
+  const claimAttemptedRef = useRef(false);
   const queueRef = useRef<QueueItem[]>([]);
   const uploadedBytesRef = useRef(0);
   const completedBytesRef = useRef(0);
@@ -468,8 +469,12 @@ function PortalPage({ portalId }: { portalId: string }) {
   ]);
 
   useEffect(() => {
+    if (!portalId || claimed || claimAttemptedRef.current) {
+      return;
+    }
+    claimAttemptedRef.current = true;
     claimPortal();
-  }, [claimPortal]);
+  }, [claimed, claimPortal, portalId]);
 
   useEffect(() => () => stopSpeedTimer(), [stopSpeedTimer]);
 
