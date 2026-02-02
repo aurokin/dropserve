@@ -568,8 +568,6 @@ function PortalPage({ portalId }: { portalId: string }) {
           </div>
           <div className="splash-center">
             <div className="splash-title">Drag files or folders here</div>
-            <div className="splash-subtitle">Use the buttons below to choose files or folders.</div>
-            <div className="splash-note">Uploads begin automatically. No upload button needed.</div>
           </div>
           <div className="picker-actions">
             <button
