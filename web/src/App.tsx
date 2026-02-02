@@ -79,16 +79,6 @@ function App() {
 
   return (
     <div className="page">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark" aria-hidden="true"></div>
-          <div>
-            <div className="brand-title">DropServe</div>
-            <div className="brand-subtitle">LAN Upload Portal</div>
-          </div>
-        </div>
-        <div className="topbar-note">Secure LAN-only uploads, no partials.</div>
-      </header>
       <main className="content">
         {isPortalPage ? <PortalPage portalId={portalId} /> : <LandingPage />}
       </main>
@@ -158,7 +148,6 @@ function PortalPage({ portalId }: { portalId: string }) {
   const [speedBps, setSpeedBps] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [portalReusable, setPortalReusable] = useState(true);
-  const [selectionMode, setSelectionMode] = useState<"files" | "folders">("files");
 
   const clientTokenRef = useRef("");
   const claimAttemptedRef = useRef(false);
@@ -539,26 +528,19 @@ function PortalPage({ portalId }: { portalId: string }) {
   const expiryLabel = expiresAt ? formatTimestamp(expiresAt) : "";
   const overallProgress = totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 0;
 
-  const handleSplashClick = useCallback(() => {
+  const handleChooseFiles = useCallback(() => {
     if (!claimed) {
       return;
     }
-    if (selectionMode === "folders") {
-      folderInputRef.current?.click();
+    fileInputRef.current?.click();
+  }, [claimed]);
+
+  const handleChooseFolders = useCallback(() => {
+    if (!claimed) {
       return;
     }
-    fileInputRef.current?.click();
-  }, [claimed, selectionMode]);
-
-  const handleSplashKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        handleSplashClick();
-      }
-    },
-    [handleSplashClick]
-  );
+    folderInputRef.current?.click();
+  }, [claimed]);
 
   useEffect(() => {
     if (!claimed || running || queuedCount === 0) {
@@ -570,49 +552,53 @@ function PortalPage({ portalId }: { portalId: string }) {
   return (
     <div className="portal-layout">
       <section className="portal-splash">
-        <div className="portal-header">
-          <div>
-            <p className="eyebrow">Upload portal</p>
-            <h1>Drop, click, and upload in one step.</h1>
-            <div className="meta">
-              Portal {portalId}
-              {expiryLabel && <span className="meta-divider">•</span>}
-              {expiryLabel && `Expires ${expiryLabel}`}
-            </div>
-          </div>
-          <div className={`status status-${status.tone}`}>{status.message}</div>
-        </div>
-
         <div
           className={`splash-drop ${!claimed ? "disabled" : ""}`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onClick={handleSplashClick}
-          onKeyDown={handleSplashKeyDown}
-          role="button"
-          tabIndex={0}
         >
-          <div className="splash-title">Drag files or folders here</div>
-          <div className="splash-subtitle">
-            Or click anywhere to choose {selectionMode === "folders" ? "folders" : "files"}.
+          <div className="splash-top">
+            <div className="meta">
+              Portal {portalId}
+              {expiryLabel && <span className="meta-divider">•</span>}
+              {expiryLabel && `Expires ${expiryLabel}`}
+            </div>
+            <div className={`status status-${status.tone}`}>{status.message}</div>
           </div>
-          <div className="splash-note">Uploads begin automatically. No upload button needed.</div>
-          <div className="splash-mode" onClick={(event) => event.stopPropagation()}>
-            <span className="splash-mode-label">Select</span>
+          <div className="splash-center">
+            <div className="splash-title">Drag files or folders here</div>
+            <div className="splash-subtitle">Use the buttons below to choose files or folders.</div>
+            <div className="splash-note">Uploads begin automatically. No upload button needed.</div>
+          </div>
+          <div className="picker-actions">
             <button
               type="button"
-              className={`mode-button ${selectionMode === "files" ? "active" : ""}`}
-              onClick={() => setSelectionMode("files")}
+              className="picker-button"
+              onClick={handleChooseFiles}
+              disabled={!claimed}
             >
-              Files
+              <span className="picker-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
+                  <path d="M6 2.5h5l4 4v11H6z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M11 2.5v4h4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </span>
+              Choose files
             </button>
             <button
               type="button"
-              className={`mode-button ${selectionMode === "folders" ? "active" : ""}`}
-              onClick={() => setSelectionMode("folders")}
+              className="picker-button"
+              onClick={handleChooseFolders}
+              disabled={!claimed}
             >
-              Folders
+              <span className="picker-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" focusable="false" aria-hidden="true">
+                  <path d="M2.5 6.5h6l1.6 2h7.4v8.5H2.5z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M2.5 6.5v-2h5l1.6 2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </span>
+              Choose folders
             </button>
           </div>
           <input
@@ -665,48 +651,47 @@ function PortalPage({ portalId }: { portalId: string }) {
             Auto-rename conflicts instead
           </label>
         </div>
-      </section>
 
-      <section className="card queue-card">
-        <div className="queue-header">
-          <h2>Queue</h2>
-          <span className="queue-meta">{queue.length} items</span>
-        </div>
-        <div className="queue-list">
-          {queue.length === 0 && (
-            <div className="queue-empty">Add files or folders to begin.</div>
+        <div className="queue-card">
+          <div className="queue-header">
+            <h2>Queue</h2>
+            <span className="queue-meta">{queue.length} items</span>
+          </div>
+          {queue.length > 0 && (
+            <div className="queue-list">
+              {queue.map((item) => {
+                const progress = Math.min(100, Math.max(0, item.progress));
+                const statusLabel =
+                  item.status === "queued"
+                    ? "Queued"
+                    : item.status === "initializing"
+                      ? "Starting"
+                      : item.status === "uploading"
+                        ? "Uploading"
+                        : item.status === "done"
+                          ? "Done"
+                          : item.status === "failed"
+                            ? "Failed"
+                            : item.status;
+                return (
+                  <div key={item.id} className={`queue-row status-${item.status}`}>
+                    <div className="queue-main">
+                      <div className="queue-name" title={item.relpath}>
+                        {item.relpath}
+                      </div>
+                      <div className="queue-progress">
+                        <div className="queue-bar" style={{ width: `${progress}%` }} />
+                      </div>
+                    </div>
+                    <div className="queue-status">
+                      <span>{statusLabel}</span>
+                      <span className="queue-percent">{progress}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
-          {queue.map((item) => {
-            const progress = Math.min(100, Math.max(0, item.progress));
-            const statusLabel =
-              item.status === "queued"
-                ? "Queued"
-                : item.status === "initializing"
-                  ? "Starting"
-                  : item.status === "uploading"
-                    ? "Uploading"
-                    : item.status === "done"
-                      ? "Done"
-                      : item.status === "failed"
-                        ? "Failed"
-                        : item.status;
-            return (
-              <div key={item.id} className={`queue-row status-${item.status}`}>
-                <div className="queue-main">
-                  <div className="queue-name" title={item.relpath}>
-                    {item.relpath}
-                  </div>
-                  <div className="queue-progress">
-                    <div className="queue-bar" style={{ width: `${progress}%` }} />
-                  </div>
-                </div>
-                <div className="queue-status">
-                  <span>{statusLabel}</span>
-                  <span className="queue-percent">{progress}%</span>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </section>
     </div>
