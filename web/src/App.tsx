@@ -12,6 +12,7 @@ type QueueItem = {
   file: File;
   relpath: string;
   status: string;
+  progress: number;
 };
 
 type QueueCandidate = {
@@ -157,6 +158,7 @@ function PortalPage({ portalId }: { portalId: string }) {
   const [speedBps, setSpeedBps] = useState(0);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [portalReusable, setPortalReusable] = useState(true);
+  const [selectionMode, setSelectionMode] = useState<"files" | "folders">("files");
 
   const clientTokenRef = useRef("");
   const claimAttemptedRef = useRef(false);
@@ -166,6 +168,8 @@ function PortalPage({ portalId }: { portalId: string }) {
   const speedTimerRef = useRef<number | null>(null);
   const lastSpeedBytesRef = useRef(0);
   const lastSpeedTimeRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     queueRef.current = queue;
@@ -180,13 +184,16 @@ function PortalPage({ portalId }: { portalId: string }) {
     setStatus({ message, tone });
   }, []);
 
-  const updateQueueStatus = useCallback((id: string, statusText: string) => {
-    setQueue((items) =>
-      items.map((item) =>
-        item.id === id ? { ...item, status: statusText } : item
-      )
-    );
-  }, []);
+  const updateQueueItem = useCallback(
+    (id: string, updates: Partial<Pick<QueueItem, "status" | "progress">>) => {
+      setQueue((items) =>
+        items.map((item) =>
+          item.id === id ? { ...item, ...updates } : item
+        )
+      );
+    },
+    []
+  );
 
   const startSpeedTimer = useCallback(() => {
     if (speedTimerRef.current !== null) {
@@ -259,7 +266,7 @@ function PortalPage({ portalId }: { portalId: string }) {
 
   const addQueueItems = useCallback(
     (items: QueueCandidate[]) => {
-      if (!claimed || running) {
+      if (!claimed) {
         return;
       }
       const normalized = items.filter((item) => item.file);
@@ -275,16 +282,17 @@ function PortalPage({ portalId }: { portalId: string }) {
             id: makeLocalID(),
             file: item.file,
             relpath,
-            status: "queued"
+            status: "queued",
+            progress: 0
           });
           addedBytes += item.file.size;
         }
         setTotalBytes((value) => value + addedBytes);
-        runPreflight(next, false);
+        runPreflight(next.filter((item) => item.status === "queued"), false);
         return next;
       });
     },
-    [claimed, runPreflight, running]
+    [claimed, runPreflight]
   );
 
   const claimPortal = useCallback(async () => {
@@ -311,7 +319,7 @@ function PortalPage({ portalId }: { portalId: string }) {
       setDefaultPolicy(policy);
       setPortalReusable(data.reusable !== false);
       setClaimed(true);
-      updateStatus("Portal ready. Add files to upload.", "ok");
+      updateStatus("Portal ready. Drop or click to add files.", "ok");
       runPreflight(queueRef.current, false);
     } catch {
       updateStatus("Failed to claim portal.", "error");
@@ -357,7 +365,7 @@ function PortalPage({ portalId }: { portalId: string }) {
           const current = completedBytesRef.current + event.loaded;
           updateUploadedBytes(current);
           const percent = item.file.size > 0 ? Math.round((event.loaded / item.file.size) * 100) : 100;
-          updateQueueStatus(item.id, `uploading ${percent}%`);
+          updateQueueItem(item.id, { status: "uploading", progress: percent });
         };
         request.onload = () => {
           if (request.status >= 200 && request.status < 300) {
@@ -377,7 +385,7 @@ function PortalPage({ portalId }: { portalId: string }) {
         request.onerror = () => reject(new Error("network error"));
         request.send(item.file);
       }),
-    [updateQueueStatus, updateUploadedBytes]
+    [updateQueueItem, updateUploadedBytes]
   );
 
   const closePortal = useCallback(async () => {
@@ -405,43 +413,53 @@ function PortalPage({ portalId }: { portalId: string }) {
     if (running || !claimed || queueRef.current.length === 0) {
       return;
     }
-    const preflightOk = await runPreflight(queueRef.current, true);
+    const pendingItems = queueRef.current.filter((item) => item.status === "queued");
+    if (pendingItems.length === 0) {
+      return;
+    }
+    const preflightOk = await runPreflight(pendingItems, true);
     if (!preflightOk) {
       return;
     }
     setRunning(true);
-    completedBytesRef.current = 0;
-    updateUploadedBytes(0);
+    const completedBytes = queueRef.current.reduce((sum, item) => {
+      if (item.status === "done") {
+        return sum + item.file.size;
+      }
+      return sum;
+    }, 0);
+    completedBytesRef.current = completedBytes;
+    updateUploadedBytes(completedBytes);
     setSpeedBps(0);
     startSpeedTimer();
 
-    for (const item of queueRef.current) {
-      updateQueueStatus(item.id, "initializing");
+    for (const item of pendingItems) {
+      updateQueueItem(item.id, { status: "initializing", progress: 0 });
       let initResponse;
       try {
         initResponse = await initUpload(item);
       } catch (error) {
         const message = error instanceof Error ? error.message : "upload failed";
-        updateQueueStatus(item.id, "failed");
+        updateQueueItem(item.id, { status: "failed" });
         updateStatus(`Upload failed: ${message}`, "error");
         setRunning(false);
         stopSpeedTimer();
         return;
       }
 
-      updateQueueStatus(item.id, "uploading 0%");
+      updateQueueItem(item.id, { status: "uploading", progress: 0 });
       try {
         await putUpload(item, initResponse.put_url);
       } catch (error) {
         const message = error instanceof Error ? error.message : "upload failed";
-        updateQueueStatus(item.id, "failed");
+        updateQueueItem(item.id, { status: "failed" });
         updateStatus(`Upload failed: ${message}`, "error");
         setRunning(false);
         stopSpeedTimer();
         return;
       }
 
-      updateQueueStatus(item.id, "done");
+      updateQueueItem(item.id, { status: "done", progress: 100 });
       completedBytesRef.current += item.file.size;
       updateUploadedBytes(completedBytesRef.current);
     }
@@ -463,7 +481,7 @@ function PortalPage({ portalId }: { portalId: string }) {
     running,
     startSpeedTimer,
     stopSpeedTimer,
-    updateQueueStatus,
+    updateQueueItem,
     updateStatus,
     updateUploadedBytes
   ]);
@@ -489,7 +507,7 @@ function PortalPage({ portalId }: { portalId: string }) {
 
   const handleDrop = useCallback(
     async (event: React.DragEvent<HTMLDivElement>) => {
-      if (!claimed || running) {
+      if (!claimed) {
         return;
       }
       event.preventDefault();
@@ -497,84 +515,137 @@ function PortalPage({ portalId }: { portalId: string }) {
       const items = await collectDropItems(event.dataTransfer);
       addQueueItems(items);
     },
-    [addQueueItems, claimed, running]
+    [addQueueItems, claimed]
   );
 
   const handleDragOver = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      if (!claimed || running) {
+      if (!claimed) {
         return;
       }
       event.preventDefault();
       event.currentTarget.classList.add("dragging");
     },
-    [claimed, running]
+    [claimed]
   );
 
   const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.currentTarget.classList.remove("dragging");
   }, []);
 
-  const canStart = claimed && queue.length > 0 && !running;
+  const queuedCount = queue.filter((item) => item.status === "queued").length;
   const conflictCount = conflicts.length;
   const conflictVerb = defaultPolicy === "autorename" ? "auto-renamed" : "overwritten";
   const expiryLabel = expiresAt ? formatTimestamp(expiresAt) : "";
+  const overallProgress = totalBytes > 0 ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100)) : 0;
+
+  const handleSplashClick = useCallback(() => {
+    if (!claimed) {
+      return;
+    }
+    if (selectionMode === "folders") {
+      folderInputRef.current?.click();
+      return;
+    }
+    fileInputRef.current?.click();
+  }, [claimed, selectionMode]);
+
+  const handleSplashKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleSplashClick();
+      }
+    },
+    [handleSplashClick]
+  );
+
+  useEffect(() => {
+    if (!claimed || running || queuedCount === 0) {
+      return;
+    }
+    runQueue();
+  }, [claimed, queuedCount, runQueue, running]);
 
   return (
     <div className="portal-layout">
-      <section className="card">
+      <section className="portal-splash">
         <div className="portal-header">
           <div>
             <p className="eyebrow">Upload portal</p>
-            <h1>Portal {portalId}</h1>
-            {expiryLabel && <div className="meta">Expires {expiryLabel}</div>}
+            <h1>Drop, click, and upload in one step.</h1>
+            <div className="meta">
+              Portal {portalId}
+              {expiryLabel && <span className="meta-divider">•</span>}
+              {expiryLabel && `Expires ${expiryLabel}`}
+            </div>
           </div>
           <div className={`status status-${status.tone}`}>{status.message}</div>
         </div>
 
-        <div className="action-row">
-          <label className="file-button">
-            Select files
-            <input
-              {...fileInputProps}
-              type="file"
-              disabled={!claimed || running}
-              onChange={handleFileInput}
-            />
-          </label>
-          <label className="file-button ghost">
-            Select folder
-            <input
-              {...folderInputProps}
-              type="file"
-              disabled={!claimed || running}
-              onChange={handleFileInput}
-            />
-          </label>
-          <button
-            className="primary-button"
-            onClick={runQueue}
-            disabled={!canStart}
-          >
-            Start upload
-          </button>
-        </div>
-
         <div
-          className={`drop-zone ${!claimed || running ? "disabled" : ""}`}
+          className={`splash-drop ${!claimed ? "disabled" : ""}`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
+          onClick={handleSplashClick}
+          onKeyDown={handleSplashKeyDown}
+          role="button"
+          tabIndex={0}
         >
-          <div className="drop-title">Drop files or folders here</div>
-          <div className="drop-subtitle">Sequential uploads keep large transfers steady.</div>
+          <div className="splash-title">Drag files or folders here</div>
+          <div className="splash-subtitle">
+            Or click anywhere to choose {selectionMode === "folders" ? "folders" : "files"}.
+          </div>
+          <div className="splash-note">Uploads begin automatically. No upload button needed.</div>
+          <div className="splash-mode" onClick={(event) => event.stopPropagation()}>
+            <span className="splash-mode-label">Select</span>
+            <button
+              type="button"
+              className={`mode-button ${selectionMode === "files" ? "active" : ""}`}
+              onClick={() => setSelectionMode("files")}
+            >
+              Files
+            </button>
+            <button
+              type="button"
+              className={`mode-button ${selectionMode === "folders" ? "active" : ""}`}
+              onClick={() => setSelectionMode("folders")}
+            >
+              Folders
+            </button>
+          </div>
+          <input
+            {...fileInputProps}
+            ref={fileInputRef}
+            type="file"
+            className="splash-input"
+            disabled={!claimed}
+            onChange={handleFileInput}
+          />
+          <input
+            {...folderInputProps}
+            ref={folderInputRef}
+            type="file"
+            className="splash-input"
+            disabled={!claimed}
+            onChange={handleFileInput}
+          />
         </div>
 
-        <div className="stats-grid">
-          <Stat label="Files queued" value={String(queue.length)} />
-          <Stat label="Total bytes" value={formatBytes(totalBytes)} />
-          <Stat label="Bytes uploaded" value={formatBytes(uploadedBytes)} />
-          <Stat label="Rolling speed" value={`${formatBytes(speedBps)}/s`} />
+        <div className="progress-panel">
+          <div className="progress-header">
+            <div className="progress-title">Overall progress</div>
+            <div className="progress-value">{overallProgress}%</div>
+          </div>
+          <div className="progress-track">
+            <div className="progress-bar" style={{ width: `${overallProgress}%` }} />
+          </div>
+          <div className="progress-meta">
+            <div>{formatBytes(uploadedBytes)} / {formatBytes(totalBytes)}</div>
+            <div>{queuedCount} queued · {queue.length} total</div>
+            <div>{formatBytes(speedBps)}/s</div>
+          </div>
         </div>
 
         <div className={`conflict-panel ${conflictCount === 0 ? "hidden" : ""}`}>
@@ -596,7 +667,7 @@ function PortalPage({ portalId }: { portalId: string }) {
         </div>
       </section>
 
-      <section className="card">
+      <section className="card queue-card">
         <div className="queue-header">
           <h2>Queue</h2>
           <span className="queue-meta">{queue.length} items</span>
@@ -605,25 +676,39 @@ function PortalPage({ portalId }: { portalId: string }) {
           {queue.length === 0 && (
             <div className="queue-empty">Add files or folders to begin.</div>
           )}
-          {queue.map((item) => (
-            <div key={item.id} className="queue-row">
-              <div className="queue-name" title={item.relpath}>
-                {item.relpath}
+          {queue.map((item) => {
+            const progress = Math.min(100, Math.max(0, item.progress));
+            const statusLabel =
+              item.status === "queued"
+                ? "Queued"
+                : item.status === "initializing"
+                  ? "Starting"
+                  : item.status === "uploading"
+                    ? "Uploading"
+                    : item.status === "done"
+                      ? "Done"
+                      : item.status === "failed"
+                        ? "Failed"
+                        : item.status;
+            return (
+              <div key={item.id} className={`queue-row status-${item.status}`}>
+                <div className="queue-main">
+                  <div className="queue-name" title={item.relpath}>
+                    {item.relpath}
+                  </div>
+                  <div className="queue-progress">
+                    <div className="queue-bar" style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+                <div className="queue-status">
+                  <span>{statusLabel}</span>
+                  <span className="queue-percent">{progress}%</span>
+                </div>
               </div>
-              <div className="queue-status">{item.status}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat">
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
     </div>
   );
 }
