@@ -31,7 +31,7 @@ The upload destination is chosen on the server by the CLI (run inside the destin
 
 - OS: Ubuntu LTS
 - Reverse proxy: **Caddy only** (ports 80/443)
-- App binds to localhost on a high port (e.g., 127.0.0.1:8080) and is proxied by Caddy
+- App binds to all interfaces on a high port (e.g., 0.0.0.0:8080) and is proxied by Caddy
 - Typical uploads < 100MB; outliers up to 50GB
 - Folder uploads: hundreds of files, not thousands
 - Storage is local disk (no network mounts assumed)

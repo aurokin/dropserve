@@ -10,7 +10,7 @@
         "dropserve open uses canonical current directory as dest_abs",
         "CLI calls POST /api/control/portals and prints http://{lan-ip}/p/{portal_id}",
         "CLI supports --minutes, --reusable, and --policy flags",
-        "Control API binds to loopback only by default",
+        "Control API endpoints live on the main server and should be blocked by the proxy",
         "Typecheck passes"
       ],
       "priority": 1,
@@ -154,7 +154,7 @@
       "acceptanceCriteria": [
         "Caddyfile enforces LAN-only access using private IP ranges",
         "Public service is proxied to 127.0.0.1:8080",
-        "Control service is not proxied",
+        "Control endpoints are not proxied",
         "Typecheck passes"
       ],
       "priority": 11,

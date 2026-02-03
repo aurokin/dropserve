@@ -14,7 +14,7 @@ This document defines portal behavior and is the source of truth for lifecycle l
 ## Required properties
 
 - Each portal has a globally-unique, unguessable `portal_id`.
-- Each portal is bound to a canonical `dest_abs` directory (set by CLI via Control API).
+- Each portal is bound to a canonical `dest_abs` directory (set by CLI via `/api/control/portals`).
 - Each portal has `open_until = created_at + duration`.
 - A portal MUST NOT be forcibly closed while `active_uploads > 0`.
 

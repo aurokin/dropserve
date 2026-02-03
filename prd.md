@@ -21,7 +21,7 @@ DropServe is a self-hosted LAN-only web app and CLI that lets a server operator 
 - [ ] `dropserve open` uses the canonical current directory as `dest_abs`.
 - [ ] CLI calls `POST /api/control/portals` and prints `http://{lan-ip}/p/{portal_id}`.
 - [ ] CLI supports `--minutes`, `--reusable`, and `--policy` flags.
-- [ ] Control API binds to loopback only by default.
+- [ ] Control endpoints are blocked by the proxy.
 
 ### US-002: Claim a portal from the browser
 **Description:** As a browser user, I want to claim a portal so that I can upload files securely with a client token.
@@ -105,12 +105,12 @@ DropServe is a self-hosted LAN-only web app and CLI that lets a server operator 
 **Acceptance Criteria:**
 - [ ] Caddyfile enforces LAN-only access using private IP ranges.
 - [ ] Public service is proxied to `127.0.0.1:8080`.
-- [ ] Control service is not proxied.
+- [ ] Control endpoints are not proxied.
 
 ## Functional Requirements
 
-- FR-1: The system must expose a public HTTP service on `127.0.0.1:8080` (configurable).
-- FR-2: The system must expose a control HTTP service on `127.0.0.1:9090` (configurable) and never proxy it.
+- FR-1: The system must expose an HTTP service on `0.0.0.0:8080` (configurable).
+- FR-2: The control endpoints must live under `/api/control/*` and never be proxied.
 - FR-3: The CLI must create portals via `POST /api/control/portals` and print a LAN URL.
 - FR-4: The public API must implement portal claim, preflight, upload init, upload PUT, upload status, and close endpoints.
 - FR-5: Uploads must stream to `.dropserve_tmp/{portal_id}/uploads/{upload_id}.part` and commit via atomic rename.
@@ -120,7 +120,7 @@ DropServe is a self-hosted LAN-only web app and CLI that lets a server operator 
 - FR-9: The portal state machine must follow OPEN → CLAIMED → IN_USE → CLOSING → CLOSED/EXPIRED rules.
 - FR-10: The web UI must support drag-and-drop, folder selection, sequential uploads, and progress/speed display.
 - FR-11: The web UI must call preflight and allow overwrite vs autorename policy selection.
-- FR-12: Caddy must enforce LAN-only access and proxy only the public service.
+- FR-12: Caddy must enforce LAN-only access and proxy only the public endpoints.
 - FR-13: The server must serve the web UI from embedded build assets produced from `web/`.
 - FR-14: HTTPS via Caddy internal CA is the default; configuration must allow HTTP-only operation and disabling HTTPS-only features.
 
@@ -144,13 +144,13 @@ DropServe is a self-hosted LAN-only web app and CLI that lets a server operator 
 
 - OS target: Ubuntu LTS.
 - Implementation language: Go for server and CLI.
-- Repo layout: `server/` (public/control services), `cli/` (CLI), `web/` (React UI).
+- Repo layout: `cmd/` (CLI/server entrypoint), `internal/` (server/CLI packages), `web/` (React UI).
 - Web UI stack: React + Vite + TypeScript, managed with Bun.
 - Vite builds static assets that are embedded into the Go server binary.
 - Default deployment uses HTTPS via Caddy internal CA; configuration must allow HTTP-only operation and disabling HTTPS-only features.
 - Typical uploads are <100MB, but outliers up to 50GB must be supported.
 - Folder uploads may include hundreds of files; sequential uploads minimize complexity.
-- Control API is loopback-only; public service is reachable only via Caddy.
+- Control endpoints live under `/api/control/*` and should be blocked by Caddy.
 - Temp directory lives inside destination for atomic rename on commit.
 - SHA-256 is computed during streaming for verification and response payloads.
 - Portal IDs and client tokens must be high-entropy and unguessable.

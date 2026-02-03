@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	defaultControlURL  = "http://127.0.0.1:9090"
+	defaultBaseURL     = "http://127.0.0.1:8080"
 	defaultPublicPort  = 8080
 	defaultOpenMinutes = 15
 )
@@ -29,6 +30,7 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 
 	var reusable bool
 	var minutes int
+	var portOverride int
 	fs.IntVar(&minutes, "minutes", defaultOpenMinutes, "Minutes to keep portal open")
 	fs.IntVar(&minutes, "m", defaultOpenMinutes, "Alias for --minutes")
 	fs.BoolVar(&reusable, "reusable", false, "Allow multiple claims")
@@ -36,6 +38,7 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 	fs.BoolVar(&reusable, "r", false, "Alias for --reusable")
 	policy := fs.String("policy", "overwrite", "Default conflict policy: overwrite or autorename")
 	hostOverride := fs.String("host", "", "Override LAN host/IP for printed link")
+	fs.IntVar(&portOverride, "port", 0, "Override server port for control call + printed link")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -51,7 +54,7 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("resolve destination: %w", err)
 	}
 
-	controlURL := normalizeControlURL(os.Getenv("DROPSERVE_CONTROL_URL"))
+	baseURL := resolveBaseURL(portOverride)
 
 	request := control.CreatePortalRequest{
 		DestAbs:              destAbs,
@@ -61,7 +64,7 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 		AutorenameOnConflict: policyValue == "autorename",
 	}
 
-	response, err := createPortal(controlURL, request)
+	response, err := createPortal(baseURL, request)
 	if err != nil {
 		return err
 	}
@@ -72,7 +75,7 @@ func RunOpen(args []string, stdout, stderr io.Writer) error {
 		host = "127.0.0.1"
 	}
 
-	port := publicPortFromEnv()
+	port := publicPortFromEnv(portOverride)
 	link := formatPortalURL(host, port, response.PortalID)
 	fmt.Fprintln(stdout, link)
 	if host != "localhost" {
@@ -101,17 +104,59 @@ func canonicalizeCwd() (string, error) {
 	return resolved, nil
 }
 
-func normalizeControlURL(raw string) string {
+func resolveBaseURL(portOverride int) string {
+	if portOverride > 0 {
+		return fmt.Sprintf("http://127.0.0.1:%d", portOverride)
+	}
+	raw := strings.TrimSpace(os.Getenv("DROPSERVE_URL"))
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("DROPSERVE_ADDR"))
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("DROPSERVE_PUBLIC_ADDR"))
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("DROPSERVE_CONTROL_URL"))
+	}
+	return normalizeBaseURL(raw)
+}
+
+func normalizeBaseURL(raw string) string {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return defaultControlURL
+		return defaultBaseURL
 	}
 
 	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
+		if parsed, err := url.Parse(trimmed); err == nil {
+			if parsed.Hostname() == "0.0.0.0" {
+				parsed.Host = "127.0.0.1" + portSuffix(parsed.Port())
+				return strings.TrimRight(parsed.String(), "/")
+			}
+		}
 		return strings.TrimRight(trimmed, "/")
 	}
 
-	return "http://" + strings.TrimRight(trimmed, "/")
+	trimmed = strings.TrimRight(trimmed, "/")
+	if host, port, err := net.SplitHostPort(trimmed); err == nil {
+		if host == "0.0.0.0" {
+			return "http://127.0.0.1:" + port
+		}
+		return "http://" + trimmed
+	}
+
+	if trimmed == "0.0.0.0" {
+		return "http://127.0.0.1"
+	}
+
+	return "http://" + trimmed
+}
+
+func portSuffix(port string) string {
+	if port == "" {
+		return ""
+	}
+	return ":" + port
 }
 
 func createPortal(baseURL string, payload control.CreatePortalRequest) (control.CreatePortalResponse, error) {
@@ -164,10 +209,34 @@ func resolveHost(override string) (string, error) {
 	return ip.String(), nil
 }
 
-func publicPortFromEnv() int {
-	addr := strings.TrimSpace(os.Getenv("DROPSERVE_PUBLIC_ADDR"))
+func publicPortFromEnv(portOverride int) int {
+	if portOverride > 0 {
+		return portOverride
+	}
+	if port := strings.TrimSpace(os.Getenv("DROPSERVE_PORT")); port != "" {
+		if portValue, err := strconv.Atoi(port); err == nil {
+			return portValue
+		}
+	}
+
+	addr := strings.TrimSpace(os.Getenv("DROPSERVE_ADDR"))
+	if addr == "" {
+		addr = strings.TrimSpace(os.Getenv("DROPSERVE_PUBLIC_ADDR"))
+	}
 	if addr == "" {
 		return defaultPublicPort
+	}
+
+	if strings.Contains(addr, "://") {
+		if parsed, err := url.Parse(addr); err == nil {
+			if parsed.Port() == "" {
+				return defaultPublicPort
+			}
+			if portValue, err := strconv.Atoi(parsed.Port()); err == nil {
+				return portValue
+			}
+			return defaultPublicPort
+		}
 	}
 
 	_, port, err := net.SplitHostPort(addr)

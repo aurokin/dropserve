@@ -3,20 +3,18 @@
 
 This document defines the API surface. The implementation must follow this spec.
 
-## Service split
+## Service shape
 
-- **Public Service** (proxied by Caddy): user browsers access this.
-  - Bind: `PUBLIC_ADDR` (default `127.0.0.1:8080`)
-
-- **Control Service** (NOT proxied): CLI uses this to create portals.
-  - Bind: `CONTROL_ADDR` (default `127.0.0.1:9090`, loopback only)
+- **Single HTTP service** (proxied by Caddy): user browsers access public endpoints.
+  - Bind: `DROPSERVE_ADDR` (default `0.0.0.0:8080`)
+  - Control endpoints live under `/api/control/*` and should be blocked by the proxy.
 
 ## Common headers
 
 - `X-Client-Token`: required for state-changing public endpoints once a one-time portal is claimed (reusable portals ignore client tokens).
 - `X-Request-Id`: optional; if present, server logs it.
 
-## Public Service Endpoints
+## Public Endpoints
 
 ### GET /
 Landing page. Explains how to run the CLI to open a portal.
@@ -176,7 +174,7 @@ Errors:
 - 404 portal invalid
 - 409 active uploads present AND close requested (implementation may mark closing_requested instead)
 
-## Control Service Endpoints (CLI-only)
+## Control Endpoints (CLI-only)
 
 ### POST /api/control/portals
 Creates a portal bound to a destination directory.
@@ -201,11 +199,11 @@ Response 200:
 ```
 
 Notes:
-- Control service must bind to loopback only.
+- Control endpoints should be blocked by the proxy.
 - This endpoint MUST NOT be exposed via Caddy.
 
 ### POST /api/control/portals/{portal_id}/close
 Administrative close, if needed.
 
 ### GET /api/control/health
-Returns 200 if control service is running.
+Returns 200 if the server is running.

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -43,7 +44,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "serve":
-		if err := runServe(); err != nil {
+		if err := runServe(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -58,23 +59,35 @@ func main() {
 	}
 }
 
-func runServe() error {
-	controlAddr := controlAddrFromEnv()
-	publicAddr := publicAddrFromEnv()
-	store := control.NewStore()
-	controlLogger := log.New(os.Stdout, "control ", log.LstdFlags)
-	publicLogger := log.New(os.Stdout, "public ", log.LstdFlags)
-
-	controlServer := &http.Server{
-		Addr:              controlAddr,
-		Handler:           control.NewServer(store, controlLogger).Handler(),
-		ReadHeaderTimeout: 5 * time.Second,
+func runServe(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var port int
+	fs.IntVar(&port, "port", 0, "Override server port")
+	if err := fs.Parse(args); err != nil {
+		return err
 	}
 
-	publicServer := &http.Server{
-		Addr:              publicAddr,
-		Handler:           publicapi.NewServer(store, publicLogger).Handler(),
+	addr := addrFromEnv(port)
+	store := control.NewStore()
+	publicLogger := log.New(os.Stdout, "public ", log.LstdFlags)
+
+	controlLogger := log.New(os.Stdout, "control ", log.LstdFlags)
+	publicHandler := publicapi.NewServer(store, publicLogger).Handler()
+	controlHandler := control.NewServer(store, controlLogger).Handler()
+	mux := http.NewServeMux()
+	mux.Handle("/api/control/", controlHandler)
+	mux.Handle("/", publicHandler)
+
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
+	}
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		if host == "" || host == "0.0.0.0" || host == "::" {
+			publicLogger.Printf("warning: binding to %s; ensure /api/control/* is blocked at the proxy", addr)
+		}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -97,42 +110,39 @@ func runServe() error {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = controlServer.Shutdown(shutdownCtx)
-		_ = publicServer.Shutdown(shutdownCtx)
+		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 1)
 	go func() {
-		controlLogger.Printf("control api listening on %s", controlAddr)
-		errCh <- controlServer.ListenAndServe()
-	}()
-	go func() {
-		publicLogger.Printf("public api listening on %s", publicAddr)
-		errCh <- publicServer.ListenAndServe()
+		publicLogger.Printf("server listening on %s", addr)
+		errCh <- server.ListenAndServe()
 	}()
 
-	for i := 0; i < 2; i++ {
-		err := <-errCh
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("server failed: %w", err)
-		}
+	err := <-errCh
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("server failed: %w", err)
 	}
 
 	return nil
 }
 
-func controlAddrFromEnv() string {
-	addr := os.Getenv("DROPSERVE_CONTROL_ADDR")
-	if addr == "" {
-		return "127.0.0.1:9090"
+func addrFromEnv(portOverride int) string {
+	if portOverride > 0 {
+		return fmt.Sprintf("0.0.0.0:%d", portOverride)
 	}
-	return addr
-}
-
-func publicAddrFromEnv() string {
-	addr := os.Getenv("DROPSERVE_PUBLIC_ADDR")
+	addr := os.Getenv("DROPSERVE_ADDR")
 	if addr == "" {
-		return "127.0.0.1:8080"
+		addr = os.Getenv("DROPSERVE_PUBLIC_ADDR")
+	}
+	if addr == "" {
+		addr = os.Getenv("DROPSERVE_PORT")
+		if addr != "" {
+			return "0.0.0.0:" + addr
+		}
+	}
+	if addr == "" {
+		return "0.0.0.0:8080"
 	}
 	return addr
 }
@@ -141,7 +151,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "DropServe CLI")
 	fmt.Fprintln(os.Stderr, "\nUsage:")
 	fmt.Fprintln(os.Stderr, "  dropserve (defaults to: open)")
-	fmt.Fprintln(os.Stderr, "  dropserve open [--minutes N] [--reusable] [--policy overwrite|autorename] [--host HOST]")
-	fmt.Fprintln(os.Stderr, "  dropserve serve")
+	fmt.Fprintln(os.Stderr, "  dropserve open [--minutes N] [--reusable] [--policy overwrite|autorename] [--host HOST] [--port N]")
+	fmt.Fprintln(os.Stderr, "  dropserve serve [--port N]")
 	fmt.Fprintln(os.Stderr, "  dropserve version")
 }

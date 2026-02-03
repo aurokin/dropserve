@@ -5,8 +5,9 @@
 
 Suggested environment variables (names may vary by implementation):
 
-- `DROPSERVE_PUBLIC_ADDR` (default `127.0.0.1:8080`)
-- `DROPSERVE_CONTROL_ADDR` (default `127.0.0.1:9090`)
+- `DROPSERVE_ADDR` (default `0.0.0.0:8080`)
+- `DROPSERVE_PORT` (optional; overrides port for `DROPSERVE_ADDR`)
+- `DROPSERVE_PUBLIC_ADDR` (legacy alias for `DROPSERVE_ADDR`)
 - `DROPSERVE_TMP_DIR_NAME` (default `.dropserve_tmp`)
 - `DROPSERVE_SWEEP_INTERVAL_SECONDS` (default 120)
 - `DROPSERVE_PART_MAX_AGE_SECONDS` (default 600)
@@ -17,7 +18,9 @@ Suggested environment variables (names may vary by implementation):
 
 ## CLI configuration
 
-- Control API base URL (default `http://127.0.0.1:9090`)
+- Base URL (default `http://127.0.0.1:8080`)
+- `DROPSERVE_URL` can override the CLI base URL.
+- `--port` on `dropserve open` overrides the base URL port.
 - Optional public base URL override:
   - `http://{primary_ipv4}` (HTTP mode)
   - `https://dropserve.lan` (TLS mode)

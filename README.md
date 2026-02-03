@@ -16,7 +16,7 @@ A self-hosted LAN-only web app + CLI pair:
 
 - OS: Ubuntu LTS
 - Reverse proxy: **Caddy only** (ports 80/443)
-- App binds to localhost on a high port (e.g., 127.0.0.1:8080) and is proxied by Caddy
+- App binds to all interfaces on a high port (e.g., 0.0.0.0:8080) and is proxied by Caddy
 - Typical upload < 100MB; outliers up to 50GB
 - Desktop-first for v1
 - Restarting an upload is acceptable (no resumable protocol required for v1)

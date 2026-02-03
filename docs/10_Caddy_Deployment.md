@@ -6,8 +6,8 @@ This document describes the required setup for running DropServe behind Caddy.
 ## Overview
 
 - Caddy owns ports 80 and optionally 443.
-- DropServe Public Service listens on localhost (default 127.0.0.1:8080).
-- DropServe Control Service listens on localhost (default 127.0.0.1:9090) and MUST NOT be proxied.
+- DropServe listens on all interfaces (default 0.0.0.0:8080).
+- Block `/api/control/*` at the proxy layer.
 
 ## LAN-only access
 
@@ -24,6 +24,9 @@ Create `/etc/caddy/Caddyfile`:
 {$DROPSERVE_LAN_HOST:dropserve.lan} {
     @denied not remote_ip private_ranges
     respond @denied "LAN only" 403
+
+    @control path /api/control/*
+    respond @control "Not Found" 404
 
     tls internal
     reverse_proxy 127.0.0.1:8080
@@ -47,6 +50,9 @@ http://:80 {
     @denied not remote_ip private_ranges
     respond @denied "LAN only" 403
 
+    @control path /api/control/*
+    respond @control "Not Found" 404
+
     reverse_proxy 127.0.0.1:8080
 }
 ```
@@ -59,6 +65,9 @@ You MAY configure Caddy with a specific IP address:
 https://192.168.1.23 {
     @denied not remote_ip private_ranges
     respond @denied "LAN only" 403
+
+    @control path /api/control/*
+    respond @control "Not Found" 404
 
     tls internal
     reverse_proxy 127.0.0.1:8080
@@ -74,5 +83,5 @@ However, hostname-based TLS is typically less fragile long-term.
 
 ## What NOT to do
 
-- Do not expose the Control Service (9090) via Caddy.
+- Do not expose `/api/control/*` via Caddy.
 - Do not bind DropServe directly to 0.0.0.0 unless you have a specific reason and understand the security implications.

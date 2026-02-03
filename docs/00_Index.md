@@ -37,6 +37,6 @@ When docs conflict:
 ## Glossary
 
 - **Portal**: A short-lived capability link that authorizes uploads to a specific destination directory.
-- **Control API**: Local-only API used by the CLI to create/manage portals; **not exposed via Caddy**.
+- **Control API**: CLI-only endpoints under `/api/control/*`; block these in Caddy.
 - **Public API**: Proxied by Caddy; used by browsers to claim portals and upload files.
 - **Commit**: The atomic rename/move step that makes a file appear in the final destination path.

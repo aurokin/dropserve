@@ -2,5 +2,8 @@ http://:80 {
     @denied not remote_ip private_ranges
     respond @denied "LAN only" 403
 
+    @control path /api/control/*
+    respond @control "Not Found" 404
+
     reverse_proxy 127.0.0.1:8080
 }

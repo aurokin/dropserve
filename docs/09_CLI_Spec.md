@@ -13,7 +13,7 @@ Opens a portal for the current working directory.
 
 Behavior:
 - Detect `dest_abs` as the current directory (canonical).
-- Call Control API: `POST http://127.0.0.1:9090/api/control/portals`
+- Call Control API: `POST http://127.0.0.1:8080/api/control/portals`
 - Detect primary LAN IPv4 address.
 - Print a link to the portal page:
   - HTTP: `http://{primary_ipv4}:{PUBLIC_PORT}/p/{portal_id}`
@@ -24,13 +24,14 @@ Flags:
 - `--reusable` (default false; aliases: `--reuseable`, `-r`)
 - `--policy overwrite|autorename` (default overwrite)
 - `--host <HOST>` (optional; override LAN host/IP in the printed link)
+- `--port <N>` (optional; override server port for control call + printed link)
 
 ### `dropserve serve`
 Starts the DropServe server services for local development.
 
 Behavior:
-- Starts the Control API on `DROPSERVE_CONTROL_ADDR` (default `127.0.0.1:9090`).
-- Public service startup will be added in later tasks.
+- Starts the HTTP service on `DROPSERVE_ADDR` (default `0.0.0.0:8080`).
+- `--port <N>` overrides the port.
 
 ### `dropserve version`
 Print version info.
@@ -56,6 +57,6 @@ The CLI should attempt:
 
 Optional config file (e.g., `~/.config/dropserve/config.toml`):
 
-- control_api: `http://127.0.0.1:9090`
+- base_url: `http://127.0.0.1:8080`
 - public_base_url: optional override (e.g., `https://dropserve.lan`)
 - defaults: minutes, policy, reusable

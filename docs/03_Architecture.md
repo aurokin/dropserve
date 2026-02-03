@@ -5,29 +5,26 @@
 
 DropServe consists of:
 
-1. **Public HTTP service** (proxied by Caddy)
+1. **HTTP service** (proxied by Caddy)
    - Serves the landing page and portal upload UI
    - Implements public API for claiming portals, uploading files, checking status, and closing portals
+   - Hosts control endpoints under `/api/control/*` for the CLI
 
-2. **Control HTTP service** (local-only)
-   - Used by CLI to create/manage portals with an absolute destination path
-   - Must **not** be exposed via Caddy
-
-3. **CLI**
+2. **CLI**
    - Runs on the destination server
-   - Creates portals through the Control API
+   - Creates portals through `/api/control/portals`
    - Detects the primary LAN IPv4 address to print a usable link
 
-4. **Caddy**
+3. **Caddy**
    - Owns ports 80/443
-   - Enforces LAN-only access and proxies requests to the Public service
+   - Enforces LAN-only access and proxies requests to the HTTP service
+   - Should block `/api/control/*` from public access
 
 ## Ports
 
 Recommended defaults:
 
-- Public service: `127.0.0.1:8080`
-- Control service: `127.0.0.1:9090` (local-only; CLI uses this)
+- HTTP service: `0.0.0.0:8080`
 - Caddy: `:80` and optionally `:443`
 
 ## Trust boundaries

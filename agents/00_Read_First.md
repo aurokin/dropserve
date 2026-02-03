@@ -23,6 +23,6 @@ You are an AI coding agent working on DropServe.
 ## Ground rules
 
 - Do not change portal semantics or cleanup invariants without updating the spec docs.
-- Do not expose the Control API via Caddy.
+- Do not expose `/api/control/*` via Caddy.
 - Do not add resumable upload protocols in v1 unless a task explicitly introduces it.
 - Prefer simplicity and reliability over performance tricks.

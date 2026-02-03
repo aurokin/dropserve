@@ -21,7 +21,7 @@ These standards are intentionally language-agnostic, but tasks may assume Go as 
 
 - Public service binds to localhost and is proxied by Caddy.
 - Caddy enforces LAN-only.
-- Control API must be loopback-only and not proxied.
+- Control endpoints must not be proxied.
 
 ## Go-specific (if using Go)
 

@@ -42,16 +42,13 @@ This writes to `internal/webassets/dist` which the Go server embeds at build/run
 
 ## Run the backend and CLI (local dev)
 
-1) Start the DropServe server (control + public APIs).
+1) Start the DropServe server.
 
 ```bash
 go run ./cmd/dropserve serve
 ```
 
-By default this starts:
-
-- Control API: `127.0.0.1:9090` (CLI talks to this)
-- Public API + UI: `127.0.0.1:8080`
+By default this starts on `0.0.0.0:8080`.
 
 2) In a second terminal, open a portal from any directory you want to upload into.
 
@@ -79,13 +76,14 @@ caddy trust
 
 Notes:
 
-- Caddy only proxies the public service on `127.0.0.1:8080`.
-- The control service (`127.0.0.1:9090`) must stay local-only.
+- Caddy proxies the DropServe server on `127.0.0.1:8080`.
+- Block `/api/control/*` at the proxy layer if you expose the service.
 
 ## Environment variables you can customize
 
-- `DROPSERVE_PUBLIC_ADDR` (default `127.0.0.1:8080`)
-- `DROPSERVE_CONTROL_ADDR` (default `127.0.0.1:9090`)
+- `DROPSERVE_ADDR` (default `0.0.0.0:8080`)
+- `DROPSERVE_PORT` (optional; overrides port for `DROPSERVE_ADDR`)
+- `DROPSERVE_PUBLIC_ADDR` (legacy alias for `DROPSERVE_ADDR`)
 - `DROPSERVE_TMP_DIR_NAME` (default `.dropserve_tmp`)
 - `DROPSERVE_SWEEP_INTERVAL_SECONDS` (default 120)
 - `DROPSERVE_PART_MAX_AGE_SECONDS` (default 600)
@@ -97,5 +95,5 @@ Notes:
 ## Troubleshooting quick hits
 
 - “web ui not available”: run `bun run build` again to refresh `internal/webassets/dist`.
-- Port already in use: change `DROPSERVE_PUBLIC_ADDR` or `DROPSERVE_CONTROL_ADDR`.
+- Port already in use: change `DROPSERVE_ADDR` or `DROPSERVE_PORT`.
 - Caddy can’t bind 80/443: stop other services or run without Caddy.

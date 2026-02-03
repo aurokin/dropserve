@@ -10,4 +10,4 @@ A task is complete when:
    - `docs/04_Portal_Spec.md`
    - `docs/06_File_IO_and_Cleanup.md`
    - `docs/07_Path_Safety.md`
-5. The Control API remains unexposed via Caddy.
+5. `/api/control/*` remains unexposed via Caddy.
