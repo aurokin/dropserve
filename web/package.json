@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
-    "preview": "vite preview"
+    "postbuild": "node ./scripts/sync-go-assets.mjs",
+    "preview": "vite preview",
+    "sync-go-assets": "node ./scripts/sync-go-assets.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

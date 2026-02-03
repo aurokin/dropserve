@@ -93,8 +93,8 @@ function App() {
   const isClaimedPage = portalId.length > 0 && subpage === "claimed";
 
   return (
-    <div className="page">
-      <main className="content">
+    <div className={isClaimedPage ? "page page-claimed" : "page"}>
+      <main className={isClaimedPage ? "content content-claimed" : "content"}>
         {isClaimedPage ? (
           <ClaimedPage portalId={portalId} />
         ) : isPortalPage ? (
@@ -157,42 +157,13 @@ function LandingPage() {
 
 function ClaimedPage({ portalId }: { portalId: string }) {
   return (
-    <section className="card claimed-card">
-      <div className="claimed-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-          <path
-            d="M7 11V8.5C7 6 9 4 12 4s5 2 5 4.5V11"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-          <rect
-            x="5"
-            y="11"
-            width="14"
-            height="9"
-            rx="2"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-          />
-        </svg>
-      </div>
+    <section className="claimed-screen" aria-labelledby="claimed-title">
       <div className="claimed-content">
         <div className="claimed-meta">Portal {portalId}</div>
-        <h1>This portal is already claimed.</h1>
-        <p className="lead">
-          DropServe locks non-reusable portals to the first device that claims them.
+        <h1 id="claimed-title">Portal closed</h1>
+        <p className="claimed-subtitle">
+          This portal was claimed on another device. Ask the host to open a fresh link.
         </p>
-        <div className="claimed-steps">
-          <div className="claimed-step">
-            Ask the host to reopen the portal or share a new link.
-          </div>
-          <div className="claimed-step">
-            For shared uploads, open a reusable portal with <code>dropserve open --reusable</code>.
-          </div>
-        </div>
         <div className="claimed-actions">
           <a className="claimed-button" href="/">Back to home</a>
         </div>

@@ -925,58 +925,106 @@ const notFoundHTML = `<!DOCTYPE html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>DropServe | 404</title>
+  <link rel="preload" as="image" href="/assets/404.png">
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: dark;
+      --ink: #e1ecff;
+      --glow: #a8e5ff;
+      --deep: #12172e;
+      --shade: rgba(7, 9, 19, 0.62);
+      --mist: rgba(120, 168, 255, 0.18);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      height: 100%;
     }
     body {
       margin: 0;
-      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: #f5f7fb;
-      color: #1a1d21;
+      font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--deep);
+      color: var(--ink);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      text-rendering: optimizeLegibility;
+      letter-spacing: 0.04em;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: -6%;
+      background-image: url("/assets/404.png");
+      background-size: cover;
+      background-position: center;
+      image-rendering: -webkit-optimize-contrast;
+      filter: saturate(1.06) contrast(1.05) brightness(0.99);
+      transform: scale(1.01);
+      z-index: 0;
+      animation: slow-drift 30s ease-in-out infinite;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 52% 44%, rgba(168, 229, 255, 0.18), transparent 42%),
+        radial-gradient(circle at 18% 70%, rgba(111, 168, 255, 0.2), transparent 55%),
+        linear-gradient(180deg, rgba(6, 8, 18, 0.35), rgba(6, 8, 18, 0.55));
+      mix-blend-mode: screen;
+      opacity: 0.45;
+      pointer-events: none;
+      z-index: 1;
     }
     main {
-      max-width: 680px;
-      margin: 72px auto;
-      padding: 0 20px;
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-start;
+      padding: clamp(24px, 5vw, 56px);
     }
-    .card {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 28px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-    }
-    .eyebrow {
-      font-size: 12px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #667085;
-      margin: 0 0 6px;
-    }
-    h1 {
-      margin: 0 0 12px;
-      font-size: 30px;
-    }
-    p {
-      margin: 0 0 12px;
-      color: #475467;
-      line-height: 1.5;
-    }
-    a {
-      color: #1f8fff;
-      text-decoration: none;
+    .number {
+      margin: 0;
+      font-size: clamp(72px, 18vw, 240px);
       font-weight: 600;
+      color: #f7fbff;
+      text-shadow:
+        0 12px 40px rgba(9, 14, 32, 0.75),
+        0 2px 12px rgba(20, 24, 50, 0.5),
+        0 0 40px rgba(168, 229, 255, 0.35);
+      -webkit-text-stroke: 1px rgba(10, 20, 40, 0.45);
+      letter-spacing: 0.12em;
+      mix-blend-mode: normal;
+      animation: rise-in 1.4s ease-out both;
+    }
+    @keyframes slow-drift {
+      0% { transform: scale(1.04) translate3d(0, 0, 0); }
+      50% { transform: scale(1.06) translate3d(-1.5%, 1%, 0); }
+      100% { transform: scale(1.04) translate3d(0, 0, 0); }
+    }
+    @keyframes rise-in {
+      0% { opacity: 0; transform: translate3d(0, 16px, 0); }
+      100% { opacity: 1; transform: translate3d(0, 0, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body::before {
+        animation: none;
+      }
+      .number {
+        animation: none;
+      }
     }
   </style>
 </head>
 <body>
-  <main>
-    <div class="card">
-      <div class="eyebrow">404</div>
-      <h1>Portal not found</h1>
-      <p>The link may have expired or never existed.</p>
-      <p><a href="/">Back to DropServe</a></p>
-    </div>
+  <main aria-label="404">
+    <h1 class="number">404</h1>
   </main>
 </body>
 </html>`

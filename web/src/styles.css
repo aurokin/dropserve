@@ -54,10 +54,21 @@ code {
   padding: 24px 20px 48px;
 }
 
+.page-claimed {
+  max-width: none;
+  padding: 0;
+  width: 100%;
+}
+
 .content {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.content-claimed {
+  min-height: 100vh;
+  gap: 0;
 }
 
 .card {
@@ -177,62 +188,84 @@ code {
   border: 1px solid var(--border);
 }
 
-.claimed-card {
+.claimed-screen {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 20px;
-  align-items: start;
+  align-items: end;
+  padding: clamp(24px, 4vw, 56px);
+  color: #f4f9ff;
+  background-image: url("./assets/closed.png");
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  isolation: isolate;
 }
 
-.claimed-card h1 {
-  font-family: var(--font-display);
-  font-size: clamp(24px, 3vw, 34px);
-  margin: 0 0 10px;
+.claimed-screen::before {
+  content: "";
+  position: absolute;
+  inset: -6%;
+  background:
+    radial-gradient(circle at 12% 80%, rgba(58, 120, 255, 0.28), transparent 50%),
+    radial-gradient(circle at 82% 20%, rgba(120, 200, 255, 0.25), transparent 45%),
+    linear-gradient(180deg, rgba(6, 10, 22, 0.08), rgba(6, 10, 22, 0.22));
+  animation: claimed-drift 18s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.claimed-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: #fff4e8;
-  color: var(--warn);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(222, 122, 44, 0.35);
+.claimed-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 100%, rgba(6, 8, 16, 0.1), rgba(6, 8, 16, 0.5));
+  opacity: 0.45;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.claimed-icon svg {
-  width: 28px;
-  height: 28px;
+.claimed-content {
+  position: relative;
+  z-index: 1;
+  max-width: min(420px, 92vw);
+  display: grid;
+  gap: 10px;
+  animation: claimed-rise 0.9s ease both;
 }
 
 .claimed-meta {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--muted);
+  letter-spacing: 0.2em;
+  color: rgba(230, 240, 255, 0.75);
   font-weight: 600;
-  margin-bottom: 8px;
 }
 
-.claimed-steps {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
+.claimed-content h1 {
+  font-family: var(--font-sans);
+  font-size: clamp(34px, 6vw, 64px);
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  text-shadow:
+    0 2px 8px rgba(4, 8, 20, 0.55),
+    0 0 20px rgba(94, 170, 255, 0.35);
+  -webkit-text-stroke: 1px rgba(12, 25, 45, 0.35);
 }
 
-.claimed-step {
+.claimed-subtitle {
+  margin: 0;
   font-size: 14px;
-  color: #8a4d1f;
-  background: #fff7ee;
-  border: 1px solid rgba(222, 122, 44, 0.25);
-  padding: 10px 12px;
-  border-radius: 12px;
+  color: rgba(222, 235, 255, 0.82);
+  max-width: 34ch;
+  text-shadow: 0 2px 10px rgba(4, 8, 20, 0.6);
 }
 
 .claimed-actions {
-  margin-top: 16px;
+  margin-top: 6px;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
@@ -242,25 +275,54 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 18px;
-  border-radius: 12px;
-  background: var(--accent);
-  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(12, 22, 40, 0.48);
+  color: #f1f6ff;
   text-decoration: none;
   font-weight: 600;
-  border: 1px solid var(--accent-strong);
-  box-shadow: 0 6px 0 rgba(31, 143, 255, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-size: 13px;
+  border: 1px solid rgba(180, 205, 255, 0.35);
+  backdrop-filter: blur(6px);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .claimed-button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 0 rgba(31, 143, 255, 0.18);
+  background: rgba(16, 32, 58, 0.62);
+  box-shadow: 0 10px 24px rgba(7, 10, 20, 0.35);
+}
+
+@keyframes claimed-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes claimed-drift {
+  from {
+    transform: translate3d(-1%, -1%, 0);
+  }
+  to {
+    transform: translate3d(1%, 1%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .claimed-content,
+  .claimed-screen::before {
+    animation: none;
+  }
 }
 
 .claimed-button:active {
-  transform: translateY(1px);
-  box-shadow: 0 3px 0 rgba(31, 143, 255, 0.12);
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .portal-layout {
@@ -715,15 +777,11 @@ code {
     text-align: left;
   }
 
-  .claimed-card {
-    grid-template-columns: 1fr;
+  .page-claimed {
+    padding: 0;
   }
 
-  .claimed-actions {
-    width: 100%;
-  }
-
-  .claimed-button {
-    width: 100%;
+  .claimed-screen {
+    padding: 22px 18px 32px;
   }
 }
