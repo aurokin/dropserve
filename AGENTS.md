@@ -1,0 +1,1 @@
+- Web application uses `bun` not `npm`

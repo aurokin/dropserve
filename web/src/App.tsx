@@ -91,10 +91,17 @@ function App() {
   const subpage = portalRoute?.subpage ?? "";
   const isPortalPage = portalId.length > 0 && subpage === "";
   const isClaimedPage = portalId.length > 0 && subpage === "claimed";
+  const isLandingPage = !isPortalPage && !isClaimedPage;
+  const pageClassName = `page${isClaimedPage ? " page-claimed" : ""}${
+    isLandingPage ? " page-landing" : ""
+  }`;
+  const contentClassName = `content${isClaimedPage ? " content-claimed" : ""}${
+    isLandingPage ? " content-landing" : ""
+  }`;
 
   return (
-    <div className={isClaimedPage ? "page page-claimed" : "page"}>
-      <main className={isClaimedPage ? "content content-claimed" : "content"}>
+    <div className={pageClassName}>
+      <main className={contentClassName}>
         {isClaimedPage ? (
           <ClaimedPage portalId={portalId} />
         ) : isPortalPage ? (
@@ -109,47 +116,16 @@ function App() {
 
 function LandingPage() {
   return (
-    <section className="card hero">
-      <div className="hero-copy">
-        <p className="eyebrow">Quick start</p>
-        <h1>Open a portal from your server, then share the link on your LAN.</h1>
-        <p className="lead">
-          DropServe keeps uploads sequential and safe. Files land only after the
-          transfer completes and verifies.
-        </p>
-        <div className="steps">
-          <div className="step">
-            <span>1</span>
-            <div>
-              Run <code>dropserve open</code> in the destination folder.
-            </div>
-          </div>
-          <div className="step">
-            <span>2</span>
-            <div>Copy the LAN URL from the CLI output.</div>
-          </div>
-          <div className="step">
-            <span>3</span>
-            <div>Open the link on a LAN desktop to upload.</div>
-          </div>
-        </div>
-        <div className="callout">
-          <div className="callout-title">Tip</div>
-          <div className="callout-body">
-            Keep the terminal open while uploads are in progress. Close it after
-            the portal finishes.
-          </div>
-        </div>
-      </div>
-      <div className="hero-panel">
-        <div className="hero-panel-header">Example</div>
-        <pre>
-          <code>$ dropserve open --minutes 20 --policy autorename</code>
-        </pre>
-        <div className="hero-panel-footer">
-          Your CLI prints a short URL like:
-          <div className="chip">http://192.168.1.42/p/p_abc123</div>
-        </div>
+    <section className="splash-screen" aria-label="DropServe command">
+      <div
+        className="splash-command"
+        role="textbox"
+        aria-readonly="true"
+        aria-label="Command"
+      >
+        <span className="splash-prompt">&gt;</span>
+        <span className="splash-text">dropserve</span>
+        <span className="splash-caret" aria-hidden="true" />
       </div>
     </section>
   );
