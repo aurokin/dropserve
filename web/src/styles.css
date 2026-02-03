@@ -197,7 +197,9 @@ code {
   padding: clamp(24px, 4vw, 56px);
   color: #f4f9ff;
   background-image: url("./assets/closed.png");
-  background-size: cover;
+  background-color: #02030a;
+  background-repeat: no-repeat;
+  background-size: 100%;
   background-position: center;
   overflow: hidden;
   isolation: isolate;
