@@ -6,9 +6,9 @@ Implement `dropserve open` that calls Control API and prints the portal link.
 
 ## Required reading (MUST read before starting)
 
-- `docs/09_CLI_Spec.md`
-- `docs/05_API_Spec.md`
-- `docs/04_Portal_Spec.md`
+- `docs/cli.md`
+- `docs/api.md`
+- `docs/portal-lifecycle.md`
 
 ## Deliverables
 

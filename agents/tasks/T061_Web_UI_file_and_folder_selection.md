@@ -6,7 +6,7 @@ Implement drag&drop files and folder selection using webkitdirectory.
 
 ## Required reading (MUST read before starting)
 
-- `docs/08_Web_UI_Spec.md`
+- `docs/web-ui.md`
 
 ## Deliverables
 

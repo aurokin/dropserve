@@ -7,7 +7,7 @@ Provide a ready-to-copy Caddy example (in README) and verify it works with the c
 ## Required reading (MUST read before starting)
 
 - `README.md`
-- `docs/03_Architecture.md`
+- `docs/architecture.md`
 
 ## Deliverables
 

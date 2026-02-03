@@ -6,8 +6,8 @@ Add preflight call and UI warnings for overwrites with autorename option.
 
 ## Required reading (MUST read before starting)
 
-- `docs/08_Web_UI_Spec.md`
-- `docs/05_API_Spec.md`
+- `docs/web-ui.md`
+- `docs/api.md`
 
 ## Deliverables
 
@@ -27,7 +27,7 @@ Add preflight call and UI warnings for overwrites with autorename option.
 
 ## Tests to run
 
-- Manual test E in `docs/12_Test_Plan.md`.
+- Manual test E in `docs/operations.md`.
 
 ## Notes
 

@@ -5,12 +5,12 @@ You are an AI coding agent working on DropServe.
 
 ## Your workflow
 
-1. Read `docs/00_Index.md` for the source-of-truth rules.
+1. Read `docs/README.md` for the source-of-truth rules.
 2. Read these specs fully before writing code:
-   - `docs/04_Portal_Spec.md`
-   - `docs/05_API_Spec.md`
-   - `docs/06_File_IO_and_Cleanup.md`
-   - `docs/07_Path_Safety.md`
+   - `docs/portal-lifecycle.md`
+   - `docs/api.md`
+   - `docs/file-safety.md`
+   - `docs/web-ui.md`
 
 3. Choose the next task from `agents/tasks/` in numerical order unless instructed otherwise.
 4. For each task:

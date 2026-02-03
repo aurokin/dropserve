@@ -1,13 +1,10 @@
-
 # Licensing Notes
 
 This project intends to be source-available/open for self-hosting.
 
 ## Important note
 
-"Open source" as commonly defined by the Open Source Definition does not allow restricting commercial use.
-
-If you want "not for commercial use", consider describing the project as "source available" and using an appropriate license that restricts commercial usage.
+"Open source" (per the Open Source Definition) does not allow restricting commercial use. If you want "not for commercial use," describe the project as "source available" and use a license that restricts commercial usage.
 
 ## Options
 
@@ -18,7 +15,7 @@ If you want "not for commercial use", consider describing the project as "source
    - A license with a non-commercial restriction (not OSI open source)
 
 3. Dual license
-   - Open-source license for community use, and a separate commercial license
+   - Open-source license for community use and separate commercial license
 
 ## Action item
 

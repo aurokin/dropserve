@@ -6,8 +6,8 @@ Implement cleanup of orphan temp dirs and old `.part` files on startup and perio
 
 ## Required reading (MUST read before starting)
 
-- `docs/06_File_IO_and_Cleanup.md`
-- `docs/04_Portal_Spec.md`
+- `docs/file-safety.md`
+- `docs/portal-lifecycle.md`
 
 ## Deliverables
 
@@ -29,7 +29,7 @@ Implement cleanup of orphan temp dirs and old `.part` files on startup and perio
 
 ## Tests to run
 
-- Manual tests B/C in `docs/12_Test_Plan.md`.
+- Manual tests B/C in `docs/operations.md`.
 
 ## Notes
 

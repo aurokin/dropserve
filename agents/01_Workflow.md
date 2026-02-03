@@ -21,4 +21,4 @@
 
 If you discover ambiguity:
 - Update the relevant `docs/*.md`
-- Add a note to `docs/00_Index.md` if the source-of-truth order changes
+- Add a note to `docs/README.md` if the source-of-truth order changes

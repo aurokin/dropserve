@@ -6,8 +6,8 @@ Implement the portal model and state transitions exactly as specified.
 
 ## Required reading (MUST read before starting)
 
-- `docs/04_Portal_Spec.md`
-- `docs/03_Architecture.md`
+- `docs/portal-lifecycle.md`
+- `docs/architecture.md`
 
 ## Deliverables
 
@@ -18,7 +18,7 @@ Implement the portal model and state transitions exactly as specified.
 ## Steps
 
 1. Implement states OPEN/CLAIMED/IN_USE/CLOSING/CLOSED/EXPIRED.
-2. Implement transition rules from `docs/04_Portal_Spec.md`.
+2. Implement transition rules from `docs/portal-lifecycle.md`.
 3. Add unit tests for expiry and close semantics.
 
 ## Acceptance criteria

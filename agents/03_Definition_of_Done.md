@@ -7,7 +7,7 @@ A task is complete when:
 2. Any new behavior is reflected in the relevant docs in `docs/`.
 3. Tests are added or updated (unit/integration as appropriate).
 4. No changes violate:
-   - `docs/04_Portal_Spec.md`
-   - `docs/06_File_IO_and_Cleanup.md`
-   - `docs/07_Path_Safety.md`
+   - `docs/portal-lifecycle.md`
+   - `docs/api.md`
+   - `docs/file-safety.md`
 5. `/api/control/*` remains unexposed via Caddy.

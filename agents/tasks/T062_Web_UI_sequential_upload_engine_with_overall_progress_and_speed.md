@@ -6,8 +6,8 @@ Implement the upload queue processor and compute overall progress and transfer s
 
 ## Required reading (MUST read before starting)
 
-- `docs/08_Web_UI_Spec.md`
-- `docs/05_API_Spec.md`
+- `docs/web-ui.md`
+- `docs/api.md`
 
 ## Deliverables
 

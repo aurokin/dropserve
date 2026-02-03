@@ -6,9 +6,9 @@ Create the endpoint that reserves an upload_id and creates metadata + temp file 
 
 ## Required reading (MUST read before starting)
 
-- `docs/05_API_Spec.md`
-- `docs/06_File_IO_and_Cleanup.md`
-- `docs/07_Path_Safety.md`
+- `docs/api.md`
+- `docs/file-safety.md`
+- `docs/file-safety.md`
 
 ## Deliverables
 

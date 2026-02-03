@@ -6,7 +6,7 @@ Implement IP detection that produces a usable LAN link by default.
 
 ## Required reading (MUST read before starting)
 
-- `docs/09_CLI_Spec.md`
+- `docs/cli.md`
 
 ## Deliverables
 

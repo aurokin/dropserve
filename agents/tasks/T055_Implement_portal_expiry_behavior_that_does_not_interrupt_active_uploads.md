@@ -6,8 +6,8 @@ Implement expiry timers and closing_requested logic per spec.
 
 ## Required reading (MUST read before starting)
 
-- `docs/04_Portal_Spec.md`
-- `docs/06_File_IO_and_Cleanup.md`
+- `docs/portal-lifecycle.md`
+- `docs/file-safety.md`
 
 ## Deliverables
 
@@ -27,7 +27,7 @@ Implement expiry timers and closing_requested logic per spec.
 
 ## Tests to run
 
-- Manual test D in `docs/12_Test_Plan.md`.
+- Manual test D in `docs/operations.md`.
 
 ## Notes
 

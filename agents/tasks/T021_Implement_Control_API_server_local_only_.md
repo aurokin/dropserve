@@ -6,8 +6,8 @@ Implement the Control Service listener and its endpoints; ensure it is not meant
 
 ## Required reading (MUST read before starting)
 
-- `docs/05_API_Spec.md`
-- `docs/03_Architecture.md`
+- `docs/api.md`
+- `docs/architecture.md`
 - `README.md`
 
 ## Deliverables

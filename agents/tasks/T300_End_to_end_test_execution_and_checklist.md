@@ -6,9 +6,9 @@ Run the test plan and record results; fix any failing behavior.
 
 ## Required reading (MUST read before starting)
 
-- `docs/12_Test_Plan.md`
-- `docs/06_File_IO_and_Cleanup.md`
-- `docs/04_Portal_Spec.md`
+- `docs/operations.md`
+- `docs/file-safety.md`
+- `docs/portal-lifecycle.md`
 
 ## Deliverables
 

@@ -6,8 +6,8 @@ Create helper functions to compute portal temp root and upload temp paths.
 
 ## Required reading (MUST read before starting)
 
-- `docs/06_File_IO_and_Cleanup.md`
-- `docs/03_Architecture.md`
+- `docs/file-safety.md`
+- `docs/architecture.md`
 
 ## Deliverables
 

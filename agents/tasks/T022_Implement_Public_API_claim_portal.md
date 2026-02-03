@@ -6,8 +6,8 @@ Implement portal claim behavior and client_token enforcement for one-time portal
 
 ## Required reading (MUST read before starting)
 
-- `docs/05_API_Spec.md`
-- `docs/04_Portal_Spec.md`
+- `docs/api.md`
+- `docs/portal-lifecycle.md`
 
 ## Deliverables
 
@@ -22,7 +22,7 @@ Implement portal claim behavior and client_token enforcement for one-time portal
 
 ## Acceptance criteria
 
-- [ ] Claim semantics match `docs/04_Portal_Spec.md`.
+- [ ] Claim semantics match `docs/portal-lifecycle.md`.
 - [ ] Token required for upload init, upload PUT, close.
 
 ## Tests to run

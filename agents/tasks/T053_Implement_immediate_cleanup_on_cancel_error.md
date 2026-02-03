@@ -6,7 +6,7 @@ Ensure PUT handler deletes `.part` and `.json` on any failure or cancellation.
 
 ## Required reading (MUST read before starting)
 
-- `docs/06_File_IO_and_Cleanup.md`
+- `docs/file-safety.md`
 
 ## Deliverables
 
@@ -26,7 +26,7 @@ Ensure PUT handler deletes `.part` and `.json` on any failure or cancellation.
 
 ## Tests to run
 
-- Manual test per `docs/12_Test_Plan.md`.
+- Manual test per `docs/operations.md`.
 
 ## Notes
 

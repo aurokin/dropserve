@@ -6,8 +6,8 @@ Pick a concrete implementation stack (default Go) and define the repository stru
 
 ## Required reading (MUST read before starting)
 
-- `docs/03_Architecture.md`
-- `docs/01_Product_Brief.md`
+- `docs/architecture.md`
+- `docs/overview.md`
 - `agents/02_Coding_Standards.md`
 
 ## Deliverables

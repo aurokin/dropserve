@@ -6,7 +6,7 @@ Resolve final destination path based on overwrite vs autorename (timestamp) poli
 
 ## Required reading (MUST read before starting)
 
-- `docs/06_File_IO_and_Cleanup.md`
+- `docs/file-safety.md`
 
 ## Deliverables
 

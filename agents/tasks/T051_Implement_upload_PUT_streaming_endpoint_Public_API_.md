@@ -6,8 +6,8 @@ Stream request body to temp file while computing SHA-256 and counting bytes.
 
 ## Required reading (MUST read before starting)
 
-- `docs/05_API_Spec.md`
-- `docs/06_File_IO_and_Cleanup.md`
+- `docs/api.md`
+- `docs/file-safety.md`
 
 ## Deliverables
 
