@@ -957,15 +957,14 @@ const notFoundHTML = `<!DOCTYPE html>
     body::before {
       content: "";
       position: fixed;
-      inset: -6%;
+      inset: 0;
       background-image: url("/assets/404.png");
-      background-size: cover;
-      background-position: center;
+      background-size: contain;
+      background-position: center top;
+      background-repeat: no-repeat;
       image-rendering: -webkit-optimize-contrast;
-      filter: saturate(1.06) contrast(1.05) brightness(0.99);
-      transform: scale(1.01);
+      filter: saturate(1.04) contrast(1.12) brightness(1.02);
       z-index: 0;
-      animation: slow-drift 30s ease-in-out infinite;
     }
     body::after {
       content: "";
@@ -986,9 +985,10 @@ const notFoundHTML = `<!DOCTYPE html>
       width: 100%;
       height: 100%;
       display: flex;
-      align-items: flex-end;
-      justify-content: flex-start;
+      align-items: center;
+      justify-content: center;
       padding: clamp(24px, 5vw, 56px);
+      transform: translateY(-8vh);
     }
     .number {
       margin: 0;
@@ -1004,19 +1004,11 @@ const notFoundHTML = `<!DOCTYPE html>
       mix-blend-mode: normal;
       animation: rise-in 1.4s ease-out both;
     }
-    @keyframes slow-drift {
-      0% { transform: scale(1.04) translate3d(0, 0, 0); }
-      50% { transform: scale(1.06) translate3d(-1.5%, 1%, 0); }
-      100% { transform: scale(1.04) translate3d(0, 0, 0); }
-    }
     @keyframes rise-in {
       0% { opacity: 0; transform: translate3d(0, 16px, 0); }
       100% { opacity: 1; transform: translate3d(0, 0, 0); }
     }
     @media (prefers-reduced-motion: reduce) {
-      body::before {
-        animation: none;
-      }
       .number {
         animation: none;
       }
