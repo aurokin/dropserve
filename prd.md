@@ -103,7 +103,7 @@ DropServe is a self-hosted LAN-only web app and CLI that lets a server operator 
 **Description:** As a server operator, I want a simple Caddy configuration so that the app is LAN-only and safe.
 
 **Acceptance Criteria:**
-- [ ] Caddyfile enforces LAN-only access using private IP ranges.
+- [ ] Caddy config enforces LAN-only access using private IP ranges.
 - [ ] Public service is proxied to `127.0.0.1:8080`.
 - [ ] Control endpoints are not proxied.
 

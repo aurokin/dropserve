@@ -2,16 +2,16 @@
 
 ## Goal
 
-Provide ready-to-copy Caddyfile templates and verify they work with the chosen ports.
+Provide a ready-to-copy Caddy example (in README) and verify it works with the chosen ports.
 
 ## Required reading (MUST read before starting)
 
-- `docs/10_Caddy_Deployment.md`
+- `README.md`
 - `docs/03_Architecture.md`
 
 ## Deliverables
 
-- Caddyfile templates in docs
+- Caddy example in README
 - A short quickstart checklist
 
 ## Steps

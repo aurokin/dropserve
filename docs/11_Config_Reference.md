@@ -27,4 +27,4 @@ Suggested environment variables (names may vary by implementation):
 
 ## Caddy configuration
 
-- `DROPSERVE_LAN_HOST` (default `dropserve.lan`): hostname or LAN IP used in the HTTPS Caddyfile.
+- `DROPSERVE_LAN_HOST` (default `dropserve.lan`): hostname or LAN IP used in the HTTPS example from README.

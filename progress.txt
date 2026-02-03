@@ -114,8 +114,8 @@ Session: N/A
 
 ## Fri Jan 30 12:00:35 AM MST 2026 - US-011
 Session: N/A
-- Added a LAN-only Caddyfile template that proxies the public service.
-- Files changed: `Caddyfile`, `prd.json`, `progress.txt`.
+- Added a LAN-only Caddy example in README.
+- Files changed: `README.md`, `prd.json`, `progress.txt`.
 - **Learnings for future iterations:**
   - LAN-only access is enforced via the `remote_ip private_ranges` matcher in Caddy.
   - Only the public service should be proxied to `127.0.0.1:8080`.

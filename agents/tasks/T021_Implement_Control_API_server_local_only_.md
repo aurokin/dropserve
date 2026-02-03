@@ -8,7 +8,7 @@ Implement the Control Service listener and its endpoints; ensure it is not meant
 
 - `docs/05_API_Spec.md`
 - `docs/03_Architecture.md`
-- `docs/10_Caddy_Deployment.md`
+- `README.md`
 
 ## Deliverables
 

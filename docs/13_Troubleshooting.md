@@ -5,7 +5,7 @@
 
 - Confirm Caddy is running and listening on :80 (and :443 if using HTTPS).
 - Confirm the firewall allows inbound 80/443 on the LAN.
-- Confirm your Caddyfile includes the LAN-only matcher and the reverse_proxy target is correct.
+- Confirm your Caddyfile includes the LAN-only matcher and the reverse_proxy target is correct (see README example).
 
 ## Caddy says “LAN only” even from my LAN machine
 

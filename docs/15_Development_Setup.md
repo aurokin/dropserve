@@ -7,7 +7,7 @@ This guide walks a junior developer through setting up a full DropServe dev envi
 
 - Go 1.22: builds and runs the DropServe server and CLI.
 - Bun + Vite: builds the React web UI into `internal/webassets/dist` so Go can embed it.
-- Caddy (optional): serves HTTPS on your LAN using the provided Caddyfile.
+- Caddy (optional): serves HTTPS on your LAN using the README example.
 
 ## Prerequisites
 
@@ -62,10 +62,10 @@ The CLI prints a URL. Open it in a browser and upload files.
 
 Use this when you want HTTPS and a stable LAN hostname.
 
-1) Start Caddy using the repo Caddyfile.
+1) Start Caddy using the README example config.
 
 ```bash
-DROPSERVE_LAN_HOST=dropserve.lan caddy run --config Caddyfile
+DROPSERVE_LAN_HOST=dropserve.lan caddy run --config /etc/caddy/Caddyfile
 ```
 
 2) (Optional) Trust Caddy’s local CA so browsers accept the cert.

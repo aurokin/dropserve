@@ -11,7 +11,6 @@ You are an AI coding agent working on DropServe.
    - `docs/05_API_Spec.md`
    - `docs/06_File_IO_and_Cleanup.md`
    - `docs/07_Path_Safety.md`
-   - `docs/10_Caddy_Deployment.md`
 
 3. Choose the next task from `agents/tasks/` in numerical order unless instructed otherwise.
 4. For each task:

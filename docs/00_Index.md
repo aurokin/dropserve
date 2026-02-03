@@ -14,12 +14,11 @@ This documentation pack is the **source of truth** for building DropServe.
 7. `07_Path_Safety.md`
 8. `08_Web_UI_Spec.md`
 9. `09_CLI_Spec.md`
-10. `10_Caddy_Deployment.md`
-11. `11_Config_Reference.md`
-12. `12_Test_Plan.md`
-13. `13_Troubleshooting.md`
-14. `14_Licensing.md`
-15. `15_Development_Setup.md`
+10. `11_Config_Reference.md`
+11. `12_Test_Plan.md`
+12. `13_Troubleshooting.md`
+13. `14_Licensing.md`
+14. `15_Development_Setup.md`
 
 ## Source-of-truth rules
 
@@ -27,7 +26,7 @@ This documentation pack is the **source of truth** for building DropServe.
 - **Server endpoints** must match `05_API_Spec.md`.
 - **File write + cleanup invariants** must match `06_File_IO_and_Cleanup.md`.
 - **Path traversal safety** must match `07_Path_Safety.md`.
-- **Deployment** must match `10_Caddy_Deployment.md` (Caddy-only; no NGINX guidance).
+- **Deployment** uses Caddy-only; see the README example (no NGINX guidance).
 
 When docs conflict:
 1) `06_File_IO_and_Cleanup.md` wins for file safety and cleanup.

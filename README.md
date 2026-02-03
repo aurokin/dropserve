@@ -43,6 +43,37 @@ Install the binary to `~/.local/bin/dropserve`:
 
 If `~/.local/bin` is not on your PATH, add it in your shell profile.
 
+## Caddy example (LAN-only)
+
+DropServe expects to run behind Caddy for LAN-only access. Example Caddyfile (HTTPS with internal CA):
+
+```caddyfile
+{$DROPSERVE_LAN_HOST:dropserve.lan} {
+    @denied not remote_ip private_ranges
+    respond @denied "LAN only" 403
+
+    @control path /api/control/*
+    respond @control "Not Found" 404
+
+    tls internal
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+HTTP-only variant:
+
+```caddyfile
+http://:80 {
+    @denied not remote_ip private_ranges
+    respond @denied "LAN only" 403
+
+    @control path /api/control/*
+    respond @control "Not Found" 404
+
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
 ## Date & timezone reference
 
 - Pack created: 2026-01-29

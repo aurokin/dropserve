@@ -19,7 +19,7 @@ These standards are intentionally language-agnostic, but tasks may assume Go as 
 
 ## Security posture
 
-- Public service binds to localhost and is proxied by Caddy.
+- Public service binds to all interfaces and is proxied by Caddy.
 - Caddy enforces LAN-only.
 - Control endpoints must not be proxied.
 
