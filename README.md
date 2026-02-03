@@ -25,7 +25,7 @@ A self-hosted LAN-only web app + CLI pair:
 ## Where to start
 
 - Humans: read `docs/README.md`
-- AI agents: read `agents/00_Read_First.md` then pick tasks in `agents/tasks/`
+- AI agents: read `agents/00_Read_First.md`
   - Doc update policy lives in `docs/README.md`.
 
 ## Build and install (local)

@@ -12,8 +12,8 @@ You are an AI coding agent working on DropServe.
    - `docs/file-safety.md`
    - `docs/web-ui.md`
 
-3. Choose the next task from `agents/tasks/` in numerical order unless instructed otherwise.
-4. For each task:
+3. Implement the requested work.
+4. For each change:
    - Read the “Required reading” files listed at the top.
    - Implement exactly what the task requests.
    - Add tests and ensure acceptance criteria pass.
